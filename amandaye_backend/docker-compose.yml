@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./amandaye_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./amandaye_backend:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=socios_amandaye.settings
+    depends_on:
+      - db
+
+  frontend:
+    build: ./amandaye_frontend
+    ports:
+      - "8080:80"
+    volumes:
+      - ./amandaye_frontend:/usr/share/nginx/html
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: amandaye
+    ports:
+      - "3307:3306"

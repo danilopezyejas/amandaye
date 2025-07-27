@@ -1,0 +1,10 @@
+<h2>Coincidencias encontradas para la cédula {{ cedula }}</h2>
+<ul>
+  {% for persona in personas %}
+    <li>
+      <a href="{% url 'detalle_persona' persona.pk %}">
+        {{ persona.nombre_completo }} — Socio Nº {{ persona.numeroSocio }}
+      </a>
+    </li>
+  {% endfor %}
+</ul>
