@@ -15,12 +15,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings
+from django.conf.urls.static import static
+from django.views.generic import TemplateView
 
 urlpatterns = [
+    path('', TemplateView.as_view(template_name='index.html')),
     path('admin/', admin.site.urls),
     path('apps/alerta/', include('amandaye_backend.apps.alerta.urls')),
     # path('api/brevet/', include('brevet.urls')),
     # path('api/schedule/', include('schedule.urls')),
     # path('api/users/', include('users.urls')),
     # path('api/amandaye_web/', include('amandaye_web.urls')),
-]
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
