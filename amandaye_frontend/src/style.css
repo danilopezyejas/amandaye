@@ -1,3 +1,4 @@
+/* @tailwindcss ignore unknown at rules */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
