@@ -89,11 +89,11 @@ WSGI_APPLICATION = 'amandaye_backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'amandaye_db',         # nombre de la base de datos
-        'USER': 'root',                # usuario de XAMPP
-        'PASSWORD': '',               # contraseña (en blanco por defecto)
-        'HOST': '127.0.0.1',          # o 'localhost'
-        'PORT': '3306',
+        'NAME': os.getenv('DB_NAME', 'amandaye_db'),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('DB_PORT', '3306'),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'ssl_disabled': True,
