@@ -44,10 +44,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'amandaye_backend.apps.alerta',  # Cambiado de 'alerta' a 'amandaye_backend.apps.alerta'
-    'amandaye_backend.apps.brevet',   # Cambiado de 'brevet' a 'amandaye_backend.apps.brevet'
-    'amandaye_backend.apps.schedule', # Cambiado de 'schedule' a 'amandaye_backend.apps.schedule'
-    'amandaye_backend.apps.users',    # Cambiado de 'users' a 'amandaye_backend.apps.users'
+    'apps.alertas',  # Alertas meteorologicas y avisos
+    'apps.brevet',   # Banco de preguntas para brevet
+    'apps.horarios', # Gestion de horarios y actividades
+    'apps.usuarios',    # Gestion de usuarios y autenticacion
     # 'amandaye_web',
 ]
 
