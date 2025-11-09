@@ -17,7 +17,7 @@ services:
       DJANGO_SETTINGS_MODULE: amandaye_backend.settings
       DB_HOST: db
       DB_PORT: "3306"
-      DB_NAME: amandaye_db
+      DB_NAME: amandaye
       DB_USER: root
       DB_PASSWORD: ""
     depends_on:
@@ -41,9 +41,10 @@ services:
       - "3307:3306"
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
-      MYSQL_DATABASE: amandaye_db
+      MYSQL_DATABASE: amandaye
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
 
 volumes:
   mysql_data:
