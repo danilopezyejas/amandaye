@@ -1,8 +1,8 @@
 <template>
   <div>
     <header class="bg-azul-institucional text-white p-5 flex items-center justify-center gap-4">
-      <img src="/logo.png" alt="Logo del Club Amandayé" class="h-12 w-12 object-contain" />
-      <h1 class="text-3xl font-bold m-0">Club Amandayé Ipegua</h1>
+      <img src="/logo.svg" alt="Logo del Club Amandayé" class="h-12 w-12 object-contain" />
+      <h1 class="text-3xl font-bold m-0">Club Amandayé Ipeguá</h1>
     </header>
     <nav class="flex justify-center gap-4 py-2 bg-azul-marino">
       <a href="#inicio" class="text-white font-bold">Inicio</a>
@@ -58,7 +58,7 @@
       <button class="bg-coral text-white px-5 py-2 rounded">Comenzar inscripción</button>
     </section>
     <footer class="bg-azul-institucional text-white p-5 text-center">
-      <img src="/logo.png" alt="Logo del Club Amandayé" class="max-h-16 mb-2 mx-auto" />
+      <img src="/logo.svg" alt="Logo del Club Amandayé" class="max-h-16 mb-2 mx-auto" />
       <p>Club Amandayé Ipegua - Paysandú, Uruguay</p>
     </footer>
   </div>
