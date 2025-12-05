@@ -1,93 +1,222 @@
 <template>
-  <div>
-    <header class="bg-azul-institucional text-white p-5 flex items-center justify-center gap-4">
-      <img src="/logo.svg" alt="Logo del Club Amandayé" class="h-12 w-12 object-contain" />
-      <h1 class="text-3xl font-bold m-0">Club Amandayé Ipeguá</h1>
-    </header>
-    <nav class="flex justify-center gap-4 py-2 bg-azul-marino">
-      <a href="#inicio" class="text-white font-bold">Inicio</a>
-      <a href="#club" class="text-white font-bold">El Club</a>
-      <a href="#socios" class="text-white font-bold">Hacete Socio</a>
-      <a href="#actividades" class="text-white font-bold">Actividades</a>
-      <a href="#calendario" class="text-white font-bold">Calendario</a>
-      <a href="#contacto" class="text-white font-bold">Contacto</a>
-    </nav>
-    <section class="hero bg-celeste py-16 text-center">
-      <h2 class="text-2xl font-semibold mb-4">Vení a remar con nosotros</h2>
-      <button class="bg-naranja-acento text-white px-5 py-2 rounded">Hacete socio</button>
-    </section>
-    <section class="section py-10 text-center" id="club">
-      <h2 class="text-xl font-bold mb-6">¿Quiénes somos?</h2>
-      <div class="cards flex flex-wrap justify-center gap-5">
-        <div class="card w-44 bg-gris-claro p-4 border border-azul-secundario rounded">
-          <h3 class="font-bold mb-2">Nuestra historia</h3>
-          <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</p>
+  <div class="min-h-screen relative font-sans text-white overflow-hidden">
+    <!-- Background Image -->
+    <div class="absolute inset-0 z-0">
+      <img 
+        src="/fondo.png" 
+        alt="Background Kayak" 
+        class="w-full h-full object-cover"
+      />
+      <div class="absolute inset-0 bg-gradient-to-b from-blue-900/60 via-blue-900/40 to-blue-900/80 backdrop-blur-[2px]"></div>
+    </div>
+
+    <!-- Content Wrapper -->
+    <div class="relative z-10 flex flex-col min-h-screen">
+      
+      <!-- Header -->
+      <header class="w-full py-6">
+        <div class="container mx-auto px-6 flex justify-between items-center">
+          <div class="flex items-center gap-4 group cursor-pointer">
+            <div class="relative">
+              <div class="absolute inset-0 bg-orange-500 rounded-full blur opacity-50 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <img src="/logo.svg" alt="Club Amandayé Logo" class="h-14 w-14 relative z-10 drop-shadow-lg transform group-hover:scale-110 transition-transform duration-300" />
+            </div>
+            <div>
+              <h1 class="text-2xl font-black tracking-tight drop-shadow-md text-orange-400">AMANDAYÉ IPEGUÁ</h1>
+              <p class="text-xs font-medium text-blue-200 tracking-widest uppercase">Paysandú • Uruguay</p>
+            </div>
+          </div>
+          <!-- Optional Nav (Hidden for simplicity as requested, but ready for expansion) -->
         </div>
-        <div class="card w-44 bg-gris-claro p-4 border border-azul-secundario rounded">
-          <h3 class="font-bold mb-2">Valores</h3>
-          <p>Espíritu de grupo, respeto, sostenibilidad.</p>
+      </header>
+
+      <!-- Main Content -->
+      <main class="flex-grow flex flex-col items-center justify-center px-4 py-12 text-center">
+        
+        <transition name="fade" mode="out-in">
+          <!-- Hero View -->
+          <div v-if="!showForm" class="max-w-4xl space-y-8" key="hero">
+            <div class="space-y-4 animate-fade-in-up">
+              <span class="inline-block py-1 px-3 rounded-full bg-orange-500/20 border border-orange-500/50 text-orange-300 text-sm font-bold tracking-wider uppercase mb-4 backdrop-blur-md">
+                Temporada 2026
+              </span>
+              <h2 class="text-5xl md:text-7xl font-black leading-tight drop-shadow-2xl">
+                DOMINÁ EL <br/>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-orange-400 to-red-500">RÍO URUGUAY</span>
+              </h2>
+              <p class="text-xl md:text-2xl text-blue-100 max-w-2xl mx-auto font-light leading-relaxed drop-shadow-md">
+                Unite a la comunidad más apasionada del remo y canotaje. 
+                Naturaleza, adrenalina y amistad en cada palada.
+              </p>
+            </div>
+
+            <div class="pt-8 animate-fade-in-up delay-200">
+              <button
+                @click="showForm = true"
+                class="group relative inline-flex items-center justify-center px-12 py-8 text-2xl font-black text-white transition-all duration-200 bg-orange-600 font-pj rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600 hover:bg-orange-500 hover:scale-110 shadow-[0_0_40px_rgba(234,88,12,0.6)]"
+              >
+                <span class="mr-2">HACETE SOCIO HOY</span>
+                <svg class="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                </svg>
+                <div class="absolute -inset-3 rounded-full bg-orange-400 opacity-20 group-hover:opacity-40 blur-lg transition-opacity duration-200"></div>
+              </button>
+              <p class="mt-4 text-sm text-blue-300 font-medium">¡Primera clase de prueba gratis!</p>
+            </div>
+          </div>
+
+          <!-- Registration Form View -->
+          <div v-else class="w-full max-w-lg relative" key="form">
+            <!-- Glass Card -->
+            <div class="absolute inset-0 bg-white/10 backdrop-blur-xl rounded-3xl transform rotate-1 scale-105"></div>
+            <div class="relative bg-black/40 backdrop-blur-md border border-white/10 p-8 md:p-10 rounded-3xl shadow-2xl animate-scale-in">
+              
+              <div class="flex justify-between items-center mb-8">
+                <div>
+                  <h3 class="text-2xl font-bold text-white">Inscripción</h3>
+                  <p class="text-blue-200 text-sm">Completá tus datos para empezar</p>
+                </div>
+                <button @click="showForm = false" class="p-2 rounded-full bg-white/5 hover:bg-white/20 transition-colors text-white/70 hover:text-white">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </div>
+
+              <form @submit.prevent="submitForm" class="space-y-5 text-left">
+                <div class="space-y-1">
+                  <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Nombre Completo</label>
+                  <input type="text" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="Ej: Juan Pérez" required />
+                </div>
+                <div class="space-y-1">
+                  <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Email</label>
+                  <input type="email" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="juan@ejemplo.com" required />
+                </div>
+                <div class="space-y-1">
+                  <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Teléfono</label>
+                  <input type="tel" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="099 123 456" required />
+                </div>
+                
+                <button type="submit" class="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-4 rounded-xl shadow-lg transform transition-all hover:-translate-y-1 hover:shadow-orange-500/30 mt-4">
+                  ENVIAR SOLICITUD
+                </button>
+              </form>
+            </div>
+          </div>
+        </transition>
+
+        <!-- Map Modal -->
+        <transition name="fade">
+          <div v-if="showMap" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click.self="showMap = false">
+            <div class="relative w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in">
+              <button @click="showMap = false" class="absolute top-4 right-4 z-10 p-2 bg-white/90 rounded-full hover:bg-white text-gray-800 shadow-md transition-all hover:scale-110">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+              <div class="aspect-video w-full">
+                <iframe 
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3372.3407991154763!2d-58.09040793124389!3d-32.302696725655174!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x95afcbf480220695%3A0xe9d737521ba84bd!2zQW1hbmRhecOpIElwZWd1w6E!5e0!3m2!1ses!2suy!4v1764852307534!5m2!1ses!2suy" 
+                  width="100%" 
+                  height="100%" 
+                  style="border:0;" 
+                  allowfullscreen="" 
+                  loading="lazy" 
+                  referrerpolicy="no-referrer-when-downgrade">
+                </iframe>
+              </div>
+            </div>
+          </div>
+        </transition>
+
+      </main>
+
+      <!-- Footer -->
+      <footer class="w-full py-8 border-t border-white/10 bg-black/20 backdrop-blur-sm">
+        <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-blue-200">
+          <div class="flex flex-col md:flex-row items-center gap-2 md:gap-6">
+            <button @click="showMap = true" class="flex items-center gap-2 hover:text-orange-400 transition-colors group">
+              <svg class="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              <span class="border-b border-transparent group-hover:border-orange-400">Paysandú, Uruguay</span>
+            </button>
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+              amandaye.ipegua@gmail.com
+            </span>
+            <a href="https://wa.me/59891625775" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-orange-400 transition-colors group">
+              <svg class="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+              091 625 775
+            </a>
+          </div>
+          <div class="flex gap-6">
+            <a href="https://www.instagram.com/amandaye_ipegua" target="_blank" rel="noopener noreferrer" class="hover:text-orange-400 transition-colors font-semibold uppercase tracking-wider text-xs">Instagram</a>
+            <a href="https://www.facebook.com/amandaye.ipegua" target="_blank" rel="noopener noreferrer" class="hover:text-orange-400 transition-colors font-semibold uppercase tracking-wider text-xs">Facebook</a>
+          </div>
         </div>
-        <div class="card w-44 bg-gris-claro p-4 border border-azul-secundario rounded">
-          <h3 class="font-bold mb-2">Nuestra sede</h3>
-          <p>Ubicada en la costa del río Uruguay.</p>
-        </div>
-      </div>
-    </section>
-    <section class="section py-10 text-center">
-      <h2 class="text-xl font-bold mb-4">Próxima travesía: sábado 14 de julio</h2>
-      <button class="bg-coral text-white px-5 py-2 rounded">Ver más</button>
-    </section>
-    <section class="section py-10 text-center" id="actividades">
-      <h2 class="text-xl font-bold mb-6">Actividades</h2>
-      <div class="cards flex flex-wrap justify-center gap-5">
-        <div class="card w-44 bg-gris-claro p-4 border border-azul-secundario rounded">Canotaje Travesías</div>
-        <div class="card w-44 bg-gris-claro p-4 border border-azul-secundario rounded">Kayak</div>
-        <div class="card w-44 bg-gris-claro p-4 border border-azul-secundario rounded">Eventos</div>
-        <div class="card w-44 bg-gris-claro p-4 border border-azul-secundario rounded">Yoga</div>
-        <div class="card w-44 bg-gris-claro p-4 border border-azul-secundario rounded">Funcional</div>
-      </div>
-    </section>
-    <section class="section py-10 text-center">
-      <h2 class="text-xl font-bold mb-4">Condiciones actuales</h2>
-      <div class="info-box inline-block m-2 p-2 bg-celeste rounded">Altura del río: 2.87 m</div>
-      <div class="info-box inline-block m-2 p-2 bg-celeste rounded">Clima: 24º - Estable</div>
-    </section>
-    <section class="section py-10 text-center">
-      <h2 class="text-xl font-bold mb-4">¡Hacete socio!</h2>
-      <p class="mb-4">Sumate al Club Amandayé y descubrí la aventura.</p>
-      <button class="bg-coral text-white px-5 py-2 rounded">Comenzar inscripción</button>
-    </section>
-    <footer class="bg-azul-institucional text-white p-5 text-center">
-      <img src="/logo.svg" alt="Logo del Club Amandayé" class="max-h-16 mb-2 mx-auto" />
-      <p>Club Amandayé Ipegua - Paysandú, Uruguay</p>
-    </footer>
+      </footer>
+    </div>
   </div>
 </template>
 
 <script setup>
-// No hay lógica JS por ahora
+import { ref } from 'vue'
+
+const showForm = ref(false)
+const showMap = ref(false)
+
+const submitForm = () => {
+  // Simulación de envío
+  const btn = document.activeElement;
+  if(btn) {
+    btn.innerHTML = '¡ENVIADO!';
+    btn.classList.add('bg-green-600');
+  }
+  setTimeout(() => {
+    alert('¡Solicitud recibida! Te contactaremos pronto para coordinar tu primera visita.');
+    showForm.value = false;
+  }, 500);
+}
 </script>
 
-<style>
-:root {
-  --azul-institucional: #001d63;
-  --azul-secundario: #1133a1;
-  --amarillo-acento: #ffd600;
-  --naranja-acento: #ff7a00;
-  --azul-marino: #002147;
-  --celeste: #a5c8e1;
-  --arena: #f1e9d2;
-  --coral: #ff5c5c;
-  --gris-claro: #f4f4f4;
-  --blanco: #ffffff;
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease, transform 0.5s ease;
 }
-.bg-azul-institucional { background-color: var(--azul-institucional); }
-.bg-azul-marino { background-color: var(--azul-marino); }
-.bg-celeste { background-color: var(--celeste); }
-.bg-naranja-acento { background-color: var(--naranja-acento); }
-.bg-gris-claro { background-color: var(--gris-claro); }
-.bg-coral { background-color: var(--coral); }
-.text-white { color: var(--blanco); }
-.text-azul-marino { color: var(--azul-marino); }
-.border-azul-secundario { border-color: var(--azul-secundario); }
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 </style>
