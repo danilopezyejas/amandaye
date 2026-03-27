@@ -84,15 +84,15 @@
               <form @submit.prevent="submitForm" class="space-y-5 text-left">
                 <div class="space-y-1">
                   <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Nombre Completo</label>
-                  <input type="text" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="Ej: Juan Pérez" required />
+                  <input type="text" v-model="form.nombre" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="Ej: Juan Pérez" required />
                 </div>
                 <div class="space-y-1">
                   <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Email</label>
-                  <input type="email" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="juan@ejemplo.com" required />
+                  <input type="email" v-model="form.email" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="juan@ejemplo.com" required />
                 </div>
                 <div class="space-y-1">
                   <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Teléfono</label>
-                  <input type="tel" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="099 123 456" required />
+                  <input type="tel" v-model="form.telefono" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="099 123 456" required />
                 </div>
                 
                 <button type="submit" class="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-4 rounded-xl shadow-lg transform transition-all hover:-translate-y-1 hover:shadow-orange-500/30 mt-4">
@@ -155,21 +155,25 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 
 const showForm = ref(false)
 const showMap = ref(false)
 
+const form = reactive({
+  nombre: '',
+  email: '',
+  telefono: '',
+})
+
 const submitForm = () => {
-  // Simulación de envío
-  const btn = document.activeElement;
-  if(btn) {
-    btn.innerHTML = '¡ENVIADO!';
-    btn.classList.add('bg-green-600');
-  }
+  console.log('Datos del formulario:', form.nombre, form.email, form.telefono)
   setTimeout(() => {
     alert('¡Solicitud recibida! Te contactaremos pronto para coordinar tu primera visita.');
     showForm.value = false;
+    form.nombre = ''
+    form.email = ''
+    form.telefono = ''
   }, 500);
 }
 </script>
