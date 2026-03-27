@@ -7,4 +7,11 @@ export default defineConfig({
     vue(),
     tailwindcss(),
   ],
+  server: {
+    watch: {
+      usePolling: true,
+      interval: 1000,
+    },
+    host: true,
+  },
 })

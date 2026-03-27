@@ -14,7 +14,7 @@
     <div class="relative z-10 flex flex-col min-h-screen">
       
       <!-- Header -->
-      <header class="w-full py-6">
+      <header class="w-full py-2">
         <div class="container mx-auto px-6 flex justify-between items-center">
           <div class="flex items-center gap-4 group cursor-pointer">
             <div class="relative">
@@ -26,18 +26,27 @@
               <p class="text-xs font-medium text-blue-200 tracking-widest uppercase">Paysandú • Uruguay</p>
             </div>
           </div>
-          <!-- Optional Nav (Hidden for simplicity as requested, but ready for expansion) -->
+          <!-- Nav -->
+          <a
+            href="http://localhost:8000/admin/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 text-sm font-bold uppercase tracking-wider text-white hover:text-orange-300 transition-all border-2 border-orange-500/70 hover:border-orange-400 px-2 py-2 rounded-full bg-orange-600/30 hover:bg-orange-600/50 shadow-lg shadow-orange-900/30"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            Admin
+          </a>
         </div>
       </header>
 
       <!-- Main Content -->
-      <main class="flex-grow flex flex-col items-center justify-center px-4 py-12 text-center">
+      <main class="flex-grow flex flex-col items-center justify-center px-4 py-8 text-center">
         
         <transition name="fade" mode="out-in">
           <!-- Hero View -->
           <div v-if="!showForm" class="max-w-4xl space-y-8" key="hero">
             <div class="space-y-4 animate-fade-in-up">
-              <span class="inline-block py-1 px-3 rounded-full bg-orange-500/20 border border-orange-500/50 text-orange-300 text-sm font-bold tracking-wider uppercase mb-4 backdrop-blur-md">
+              <span class="inline-block py-2 px-2 rounded-full bg-orange-500/20 border border-orange-500/50 text-orange-300 text-sm font-bold tracking-wider uppercase mb-4 backdrop-blur-md">
                 Temporada 2026
               </span>
               <h2 class="text-5xl md:text-7xl font-black leading-tight drop-shadow-2xl">
@@ -53,7 +62,7 @@
             <div class="pt-8 animate-fade-in-up delay-200">
               <button
                 @click="showForm = true"
-                class="group relative inline-flex items-center justify-center px-12 py-8 text-2xl font-black text-white transition-all duration-200 bg-orange-600 font-pj rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600 hover:bg-orange-500 hover:scale-110 shadow-[0_0_40px_rgba(234,88,12,0.6)]"
+                class="group relative inline-flex items-center justify-center px-2 py-2 text-2xl font-black text-white transition-all duration-200 bg-orange-600 font-pj rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-600 hover:bg-orange-500 hover:scale-110 shadow-[0_0_40px_rgba(234,88,12,0.6)] cursor-pointer"
               >
                 <span class="mr-2">HACETE SOCIO HOY</span>
                 <svg class="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,7 +85,7 @@
                   <h3 class="text-2xl font-bold text-white">Inscripción</h3>
                   <p class="text-blue-200 text-sm">Completá tus datos para empezar</p>
                 </div>
-                <button @click="showForm = false" class="p-2 rounded-full bg-white/5 hover:bg-white/20 transition-colors text-white/70 hover:text-white">
+                <button @click="showForm = false" class="p-3 rounded-full bg-white/10 hover:bg-white/25 transition-colors text-white/70 hover:text-white border border-white/10 hover:border-white/30">
                   <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
               </div>
@@ -91,11 +100,11 @@
                   <input type="email" v-model="form.email" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="juan@ejemplo.com" required />
                 </div>
                 <div class="space-y-1">
-                  <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Teléfono</label>
+                  <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Celular</label>
                   <input type="tel" v-model="form.telefono" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="099 123 456" required />
                 </div>
                 
-                <button type="submit" class="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-4 rounded-xl shadow-lg transform transition-all hover:-translate-y-1 hover:shadow-orange-500/30 mt-4">
+                <button type="submit" class="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-4 rounded-xl shadow-lg transform transition-all hover:-translate-y-1 hover:shadow-orange-500/30 mt-4 cursor-pointer">
                   ENVIAR SOLICITUD
                 </button>
               </form>
@@ -128,10 +137,10 @@
       </main>
 
       <!-- Footer -->
-      <footer class="w-full py-8 border-t border-white/10 bg-black/20 backdrop-blur-sm">
-        <div class="container mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-blue-200">
+      <footer class="w-full py-2 border-t border-white/10 bg-black/20 backdrop-blur-sm">
+        <div class="container mx-auto px-2 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-blue-200">
           <div class="flex flex-col md:flex-row items-center gap-2 md:gap-6">
-            <button @click="showMap = true" class="flex items-center gap-2 hover:text-orange-400 transition-colors group">
+            <button @click="showMap = true" class="flex items-center gap-2 hover:text-orange-400 transition-colors group cursor-pointer">
               <svg class="w-4 h-4 text-orange-500 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
               <span class="border-b border-transparent group-hover:border-orange-400">Paysandú, Uruguay</span>
             </button>
