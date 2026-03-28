@@ -1,15 +1,116 @@
 {% extends "admin/base.html" %}
-{% load static %}
+{% load i18n static %}
 
-{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block title %}{{ title }} | Amandayé Ipeguá Admin{% endblock %}
 
-{% block extrahead %}
-    {{ block.super }}
-    <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Personalización de colores del Admin de Django para Amandayé Ipeguá */
+    :root, 
+    [data-theme="light"], 
+    [data-theme="dark"], 
+    [data-theme="auto"] {
+        /* Colores primarios */
+        --primary: #0f296d !important; /* Azul Marino (Encabezado y botones por defecto) */
+        --secondary: #1e489c !important; /* Azul Claro (Subtítulos de módulos) */
+        --accent: #ed6c06 !important; /* Naranja (Hover y acentos) */
+        --primary-fg: #ffffff !important; /* Texto sobre primario */
+
+        /* Header (Barra superior) */
+        --header-color: #f4b01e !important; /* Amarillo (Texto branding) */
+        --header-branding-color: #ed6c06 !important;
+        --header-bg: #0f296d !important;
+        --header-link-color: #ffffff !important;
+
+        /* Botones */
+        --button-fg: #ffffff !important;
+        --button-bg: #1e489c !important;
+        --button-hover-bg: #ed6c06 !important;
+        --default-button-bg: #0f296d !important;
+        --default-button-hover-bg: #ed6c06 !important;
+        
+        /* Enlaces */
+        --link-fg: #1e489c !important;
+        --link-hover-color: #ed6c06 !important;
+        --link-selected-fg: #ed6c06 !important;
+        
+        /* Breadcrumbs (Migas de pan) */
+        --breadcrumbs-fg: #f4b01e !important;
+        --breadcrumbs-link-fg: #ffffff !important;
+        --breadcrumbs-bg: #1e489c !important;
+
+        /* Selección y Filas */
+        --selected-bg: #f8fafc !important;
+        --selected-row: rgba(244, 176, 30, 0.15) !important; /* Amarillo clarito */
+        
+        /* Forzar fondos claros siempre (anular modo oscuro) */
+        --body-bg: #ffffff !important;
+        --body-fg: #333333 !important;
+        --body-quiet-color: #666666 !important;
+        --body-loud-color: #000000 !important;
+        --darkened-bg: #f8f8f8 !important;
+    }
+
+    /* Ocultar cualquier botón del modo oscuro residual */
+    #theme-toggle {
+        display: none !important;
+    }
+    
+    @media (prefers-color-scheme: dark) {
+        :root {
+            /* Repetir fondos claros para prevenir que el navegador pise el estilo */
+            --body-bg: #ffffff !important;
+            --body-fg: #333333 !important;
+            --darkened-bg: #f8f8f8 !important;
+            --primary: #0f296d !important;
+            --secondary: #1e489c !important;
+            --accent: #ed6c06 !important;
+        }
+    }
+
+    /* Ajustes específicos adicionales */
+    #header {
+        border-bottom: 4px solid var(--accent);
+    }
+    
+    #branding h1, #branding h1 a:link, #branding h1 a:visited {
+        color: var(--primary-fg);
+        font-weight: bold;
+    }
+
+    div.breadcrumbs {
+        border-bottom: 2px solid var(--header-color);
+    }
+</style>
+<link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}">
 {% endblock %}
 
 {% block branding %}
-<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+<h1 id="site-name">
+    <a href="{% url 'admin:index' %}">
+        Administración Amandayé Ipeguá
+    </a>
+</h1>
 {% endblock %}
 
 {% block nav-global %}{% endblock %}
+
+{% block userlinks %}
+    {% if site_url %}
+        <a href="{{ site_url }}">{% translate 'View site' %}</a> /
+    {% endif %}
+    {% if user.is_active and user.is_staff %}
+        {% url 'django-admindocs-docroot' as docsroot %}
+        {% if docsroot %}
+            <a href="{{ docsroot }}">{% translate 'Documentation' %}</a> /
+        {% endif %}
+    {% endif %}
+    {% if user.has_usable_password %}
+    <a href="{% url 'admin:password_change' %}">{% translate 'Change password' %}</a> /
+    {% endif %}
+    <form id="logout-form" method="post" action="{% url 'admin:logout' %}">
+        {% csrf_token %}
+        <button type="submit">{% translate 'Log out' %}</button>
+    </form>
+{% endblock %}

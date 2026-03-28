@@ -1,14 +1,35 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h2>Coincidencias encontradas para la cédula {{ cedula }}</h2>
-<ul>
-  {% for persona in personas %}
-    <li>
-      <a href="{% url 'detalle_persona' persona.pk %}">
-        {{ persona.nombre_completo }} — Socio Nº {{ persona.numeroSocio }}
-      </a>
-    </li>
-  {% endfor %}
-</ul>
+<div class="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+    <div class="bg-amandaye-navy px-6 py-4 border-b-4 border-amandaye-yellow text-white flex items-center justify-between">
+        <h2 class="text-xl font-bold">Resultados de Búsqueda</h2>
+        <span class="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold">Cédula: {{ cedula }}</span>
+    </div>
+    <div class="p-6">
+        <p class="text-gray-600 mb-6 font-medium">Se encontraron las siguientes coincidencias:</p>
+        <ul class="space-y-3">
+        {% for persona in personas %}
+            <li>
+                <a href="{% url 'detalle_persona' persona.pk %}" class="block bg-gray-50 hover:bg-amandaye-light border border-gray-200 hover:border-amandaye-blue rounded-lg p-4 transition-all hover:shadow-md group">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="font-bold text-amandaye-navy group-hover:text-amandaye-orange transition-colors text-lg">{{ persona.nombre_completo }}</p>
+                            <p class="text-sm text-gray-500 mt-1">Haga click para ver la ficha completa</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-gray-400 uppercase font-semibold tracking-wider">Socio Nº</span>
+                            <p class="font-black text-xl text-amandaye-blue">{{ persona.numeroSocio }}</p>
+                        </div>
+                    </div>
+                </a>
+            </li>
+        {% endfor %}
+        </ul>
+        
+        <div class="mt-8 flex justify-end">
+            <a href="javascript:history.back()" class="px-5 py-2 rounded-lg bg-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-300 transition-colors">Volver Atrás</a>
+        </div>
+    </div>
+</div>
 {% endblock %}

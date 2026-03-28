@@ -3,18 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amandaye</title>
+    <title>Amandayé Ipeguá - Sistema</title>
     {% load static %}
     <link rel="icon" type="image/png" href="{% static 'img/favicon.svg' %}?v=1">
-    <style>
-        body {
-            font-family: sans-serif;
-            margin: 20px;
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        amandaye: {
+                            navy: '#0f296d',
+                            blue: '#1e489c',
+                            orange: '#ed6c06',
+                            yellow: '#f4b01e',
+                            light: '#f8fafc'
+                        }
+                    }
+                }
+            }
         }
+    </script>
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     </style>
 </head>
-<body>
-    {% block content %}
-    {% endblock %}
+<body class="bg-gray-50 text-gray-800 min-h-screen flex flex-col">
+    <!-- Header with logo colors -->
+    <header class="bg-amandaye-navy text-white shadow-md border-b-4 border-amandaye-orange">
+        <div class="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-amandaye-light p-1 shadow-inner flex items-center justify-center">
+                    <span class="text-amandaye-orange font-black text-xl leading-none">A</span>
+                </div>
+                <div>
+                    <h1 class="text-xl font-black tracking-tight text-white leading-tight">AMANDAYÉ IPEGUÁ</h1>
+                    <p class="text-[10px] text-amandaye-yellow font-bold tracking-widest uppercase">Sistema de Socios</p>
+                </div>
+            </div>
+            <a href="/" class="text-xs font-semibold uppercase text-amandaye-yellow hover:text-white transition-colors">Volver a Web</a>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-grow max-w-5xl mx-auto w-full px-4 py-8">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-amandaye-navy text-center py-6 border-t-4 border-amandaye-yellow mt-auto">
+        <p class="text-xs text-white/70 font-medium">Club Amandayé Ipeguá - Paysandú, Uruguay</p>
+    </footer>
 </body>
 </html>
