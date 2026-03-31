@@ -1,0 +1,9 @@
+{
+    "python.defaultInterpreterPath": "c:\\Users\\Danilo\\socios_amandaye\\venv\\Scripts\\python.exe",
+    "python.analysis.extraPaths": [
+        "c:\\Users\\Danilo\\socios_amandaye\\amandaye_backend"
+    ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "none"
+    }
+}

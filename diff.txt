@@ -1,0 +1,78 @@
+﻿diff --git a/amandaye_backend/apps/usuarios/__pycache__/admin.cpython-39.pyc b/amandaye_backend/apps/usuarios/__pycache__/admin.cpython-39.pyc
+index ca528f3..740756e 100644
+Binary files a/amandaye_backend/apps/usuarios/__pycache__/admin.cpython-39.pyc and b/amandaye_backend/apps/usuarios/__pycache__/admin.cpython-39.pyc differ
+diff --git a/amandaye_backend/apps/usuarios/__pycache__/models.cpython-39.pyc b/amandaye_backend/apps/usuarios/__pycache__/models.cpython-39.pyc
+index 37d6ecb..7e73103 100644
+Binary files a/amandaye_backend/apps/usuarios/__pycache__/models.cpython-39.pyc and b/amandaye_backend/apps/usuarios/__pycache__/models.cpython-39.pyc differ
+diff --git a/amandaye_backend/apps/usuarios/admin.py b/amandaye_backend/apps/usuarios/admin.py
+index 25b451e..108c7d0 100644
+--- a/amandaye_backend/apps/usuarios/admin.py
++++ b/amandaye_backend/apps/usuarios/admin.py
+@@ -13,7 +13,25 @@ from .models import (
+ 
+ @admin.register(Personas)
+ class PersonasAdmin(admin.ModelAdmin):
+-    readonly_fields = ("enlace_al_titular",)
++    readonly_fields = ("enlace_al_titular", "edad_calculada")
++    fields = (
++        "Cedula",
++        "numeroSocio",
++        "PrimerNombre",
++        "SegundoNombre",
++        "PrimerApellido",
++        "SegundoApellido",
++        "FechaNacimiento",
++        "edad_calculada",
++        "Direccion",
++        "Telefono",
++        "Celular",
++        "Correo",
++        "relacionTitular",
++        "salud",
++        "llave",
++        "enlace_al_titular"
++    )
+     list_display = ("nro_socio", "nombre_completo", "cedula_display")
+     search_fields = ("Cedula", "PrimerNombre", "PrimerApellido", "SegundoApellido", "numeroSocio")
+ 
+@@ -45,6 +63,28 @@ class PersonasAdmin(admin.ModelAdmin):
+             )
+         return "Titular externo o no encontrado en la base de datos."
+ 
++    @admin.display(description="Edad")
++    def edad_calculada(self, obj):
++        from datetime import date
++        from django.utils.html import format_html
++
++        if not obj or not obj.FechaNacimiento:
++            return "Sin fecha de nacimiento"
++
++        today = date.today()
++        # Calcula la edad teniendo en cuenta que no haya pasado el cumplea├▒os en este a├▒o
++        edad = today.year - obj.FechaNacimiento.year - ((today.month, today.day) < (obj.FechaNacimiento.month, obj.FechaNacimiento.day))
++
++        # Chequear relaci├│n de titularidad para inyectar advertencia
++        if obj.relacionTitular:
++            rel = obj.relacionTitular.strip().lower()
++            if rel == "hijo" and edad >= 18:
++                return format_html(
++                    '<strong style="color: #ff0000; font-size: 1.1em;">{} a├▒os (ADVERTENCIA: Es hijo/a y tiene 18 a├▒os o m├ís)</strong>',
++                    edad
++                )
++        return f"{edad} a├▒os"
++
+     @admin.display(description="N├ÜMERO DE SOCIO", ordering="numeroSocio")
+     def nro_socio(self, obj):
+         return obj.numeroSocio
+diff --git a/amandaye_backend/apps/usuarios/models.py b/amandaye_backend/apps/usuarios/models.py
+index 6e4a530..3af878d 100644
+--- a/amandaye_backend/apps/usuarios/models.py
++++ b/amandaye_backend/apps/usuarios/models.py
+@@ -48,7 +48,6 @@ class Personas(models.Model):
+     PrimerApellido = models.CharField(max_length=100, verbose_name="Primer apellido")
+     SegundoApellido = models.CharField(max_length=100, null=True, blank=True, verbose_name="Segundo apellido")
+     FechaNacimiento = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
+-    Edad = models.IntegerField(null=True, blank=True, verbose_name="Edad")
+     Direccion = models.CharField(max_length=100, null=True, blank=True, verbose_name="Direcci├│n")
+     Telefono = models.CharField(max_length=9, null=True, blank=True, verbose_name="Tel├⌐fono")
+     Celular = models.CharField(max_length=12, null=True, blank=True, verbose_name="Celular")
