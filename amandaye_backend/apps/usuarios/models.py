@@ -106,10 +106,7 @@ class Socios(models.Model):
     tipo = models.TextField(verbose_name="Tipo de socio")
     cedulaTitular = models.CharField(max_length=11, verbose_name="Cédula del titular")
     comentarios = models.CharField(max_length=40, null=True, blank=True, verbose_name="Comentarios")
-    lugarPago = models.CharField(max_length=20, null=True, blank=True, verbose_name="Lugar de pago")
-    cobroEspecial = models.IntegerField(null=True, blank=True, verbose_name="Cobro especial")
     percha = models.IntegerField(null=True, blank=True, verbose_name="Percha")
-    Habilitado = models.IntegerField(null=True, blank=True, verbose_name="Habilitado")
 
     class Meta:
         db_table = 'socios'
