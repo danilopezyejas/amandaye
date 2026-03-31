@@ -48,7 +48,6 @@ class Personas(models.Model):
     PrimerApellido = models.CharField(max_length=100, verbose_name="Primer apellido")
     SegundoApellido = models.CharField(max_length=100, null=True, blank=True, verbose_name="Segundo apellido")
     FechaNacimiento = models.DateField(null=True, blank=True, verbose_name="Fecha de nacimiento")
-    Edad = models.IntegerField(null=True, blank=True, verbose_name="Edad")
     Direccion = models.CharField(max_length=100, null=True, blank=True, verbose_name="Dirección")
     Telefono = models.CharField(max_length=9, null=True, blank=True, verbose_name="Teléfono")
     Celular = models.CharField(max_length=12, null=True, blank=True, verbose_name="Celular")

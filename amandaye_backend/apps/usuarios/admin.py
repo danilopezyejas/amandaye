@@ -13,7 +13,25 @@ from .models import (
 
 @admin.register(Personas)
 class PersonasAdmin(admin.ModelAdmin):
-    readonly_fields = ("enlace_al_titular",)
+    readonly_fields = ("enlace_al_titular", "edad_calculada")
+    fields = (
+        "Cedula",
+        "numeroSocio",
+        "PrimerNombre",
+        "SegundoNombre",
+        "PrimerApellido",
+        "SegundoApellido",
+        "FechaNacimiento",
+        "edad_calculada",
+        "Direccion",
+        "Telefono",
+        "Celular",
+        "Correo",
+        "relacionTitular",
+        "salud",
+        "llave",
+        "enlace_al_titular"
+    )
     list_display = ("nro_socio", "nombre_completo", "cedula_display")
     search_fields = ("Cedula", "PrimerNombre", "PrimerApellido", "SegundoApellido", "numeroSocio")
 
@@ -44,6 +62,28 @@ class PersonasAdmin(admin.ModelAdmin):
                 url, persona_titular.nombre_completo(), persona_titular.Cedula
             )
         return "Titular externo o no encontrado en la base de datos."
+
+    @admin.display(description="Edad")
+    def edad_calculada(self, obj):
+        from datetime import date
+        from django.utils.html import format_html
+
+        if not obj or not obj.FechaNacimiento:
+            return "Sin fecha de nacimiento"
+
+        today = date.today()
+        # Calcula la edad teniendo en cuenta que no haya pasado el cumpleaños en este año
+        edad = today.year - obj.FechaNacimiento.year - ((today.month, today.day) < (obj.FechaNacimiento.month, obj.FechaNacimiento.day))
+
+        # Chequear relación de titularidad para inyectar advertencia
+        if obj.relacionTitular:
+            rel = obj.relacionTitular.strip().lower()
+            if rel == "hijo" and edad >= 18:
+                return format_html(
+                    '<strong style="color: #ff0000; font-size: 1.1em;">{} años (ADVERTENCIA: Es hijo/a y tiene 18 años o más)</strong>',
+                    edad
+                )
+        return f"{edad} años"
 
     @admin.display(description="NÚMERO DE SOCIO", ordering="numeroSocio")
     def nro_socio(self, obj):
