@@ -11,8 +11,52 @@ from .models import (
     Socios_cambios,
 )
 
+class HistorialValoresMixin:
+    """
+    Mixin para guardar en el historial (LogEntry) el valor anterior y el nuevo
+    cuando se modifica un registro desde el Admin de Django.
+    """
+    def construct_change_message(self, request, form, formsets, add=False):
+        change_message = super().construct_change_message(request, form, formsets, add)
+        
+        if not add and form.changed_data:
+            changes = []
+            for field in form.changed_data:
+                old_val = form.initial.get(field)
+                new_val = form.cleaned_data.get(field)
+
+                # Intentar obtener la etiqueta descriptiva si el campo tiene 'choices' (ej: activo 1 -> ALTA)
+                form_field = form.fields.get(field)
+                if form_field and hasattr(form_field, 'choices'):
+                    try:
+                        choices_dict = dict(form_field.choices)
+                        # Reemplazar con el valor legíble si existe en las opciones y no es un tipo complejo
+                        if type(old_val) in [int, str, bool] and old_val in choices_dict:
+                            old_val = choices_dict[old_val]
+                        if type(new_val) in [int, str, bool] and new_val in choices_dict:
+                            new_val = choices_dict[new_val]
+                    except Exception:
+                        pass
+
+                if old_val in [None, '']: old_val = 'vacío'
+                if new_val in [None, '']: new_val = 'vacío'
+                
+                # Obtener la etiqueta del campo, o usar el nombre de la variable como fallback
+                field_label = form.fields[field].label if field in form.fields and form.fields[field].label else field
+                changes.append(f'{field_label} (de "{old_val}" a "{new_val}")')
+            
+            if changes:
+                for msg in change_message:
+                    # Modificamos el mensaje estándar de django que lista solo los campos.
+                    # Mantenemos la clave 'fields' porque Django asume que siempre existe para el mensaje de cambio.
+                    if 'changed' in msg and 'fields' in msg['changed'] and 'object' not in msg['changed']:
+                        msg['changed']['fields'] = changes
+                        break
+
+        return change_message
+
 @admin.register(Personas)
-class PersonasAdmin(admin.ModelAdmin):
+class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
     readonly_fields = ("enlace_al_titular", "edad_calculada")
     fields = (
         "Cedula",
@@ -115,7 +159,7 @@ class EstadoActivoFilter(admin.SimpleListFilter):
         return queryset
 
 @admin.register(Socios)
-class SociosAdmin(admin.ModelAdmin):
+class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
     list_display = ("numero", "cedula", "nombre_completo_socio", "tipo", "estado_activo")
     search_fields = ("numero", "cedulaTitular")
     list_filter = (EstadoActivoFilter, "tipo")
@@ -180,6 +224,18 @@ class SociosAdmin(admin.ModelAdmin):
     def nombre_completo_socio(self, obj):
         p = self.get_persona(obj)
         return p.nombre_completo() if p else ""
+
+    def delete_model(self, request, obj):
+        # Cuando se elimina un socio, borramos el numero de socio (lo dejamos en 0) 
+        # en las fichas de personas correspondientes
+        Personas.objects.filter(numeroSocio=obj.numero).update(numeroSocio=0)
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        # Mismo comportamiento pero para acciones masivas en la lista
+        numeros = queryset.values_list('numero', flat=True)
+        Personas.objects.filter(numeroSocio__in=numeros).update(numeroSocio=0)
+        super().delete_queryset(request, queryset)
 
 
 #admin.site.register(Embarcaciones)
