@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'apps.brevet',   # Banco de preguntas para brevet
     'apps.horarios', # Gestion de horarios y actividades
     'apps.usuarios',    # Gestion de usuarios y autenticacion
+    'apps.cobranzas',   # Control de pagos y deudas
     # 'amandaye_web',
 ]
 
