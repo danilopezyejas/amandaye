@@ -8,7 +8,7 @@ from apps.usuarios.services.socios import crear_solicitud_socio, aprobar_socio, 
 class SocioLifecycleTestCase(TestCase):
     def setUp(self):
         # Crear concepto base para probar reingresos
-        ConceptoCobro.objects.create(codigo="MATRICULA", nombre="Matricula Base")
+        ConceptoCobro.objects.create(codigo="MATRICULA", nombre="Matricula Base", importe_por_defecto=2000.00)
 
     def test_crear_solicitud_socio_pendiente(self):
         datos_titular = {

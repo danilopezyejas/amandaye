@@ -36,6 +36,7 @@ class ConceptoCobro(models.Model):
     codigo = models.CharField(max_length=50, unique=True)
     nombre = models.CharField(max_length=100)
     descripcion = models.TextField(null=True, blank=True)
+    importe_por_defecto = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Precio actual o base")
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -108,14 +108,14 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socio
         try:
             concepto_mat = ConceptoCobro.objects.get(codigo="MATRICULA")
             from decimal import Decimal
-            precio = Decimal('2000.00')
+            precio = concepto_mat.importe_por_defecto
             periodo = datetime.date.today().strftime('%Y-%m')
             
             # Chequeo reingreso (si estuvo de baja hace menos de 1 año)
             if socio.fechaBaja:
                 delta = socio.fechaAlta - socio.fechaBaja
                 if delta.days <= 365:
-                    precio = Decimal('4000.00') # matricula doble
+                    precio = precio * Decimal('2.00') # matricula doble
                     
             crear_cargo(
                 cuenta=cuenta,
