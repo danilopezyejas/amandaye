@@ -212,6 +212,35 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
     search_fields = ("numero", "cedulaTitular")
     list_filter = (EstadoActivoFilter, "tipo")
 
+    def save_model(self, request, obj, form, change):
+        if change and 'activo' in form.changed_data:
+            viejo_activo = form.initial.get('activo')
+            nuevo_activo = form.cleaned_data.get('activo')
+            
+            if viejo_activo == 2 and nuevo_activo == 1:
+                obj.activo = viejo_activo 
+                from apps.usuarios.services.socios import aprobar_socio
+                from django.contrib import messages
+                try:
+                    aprobar_socio(obj)
+                    self.message_user(request, "Socio aprobado automáticamente y Cuenta Corriente generada.", level=messages.SUCCESS)
+                except Exception as e:
+                    self.message_user(request, f"Error generando cuenta: {str(e)}", level=messages.ERROR)
+                return  
+            
+            elif viejo_activo in [1, 2] and nuevo_activo == 0:
+                obj.activo = viejo_activo 
+                from apps.usuarios.services.socios import dar_baja_socio
+                from django.contrib import messages
+                try:
+                    dar_baja_socio(obj, motivo="Baja manual desde selector de formulario")
+                    self.message_user(request, "Socio dado de baja limpiamente.", level=messages.SUCCESS)
+                except Exception as e:
+                    self.message_user(request, f"Error dando de baja: {str(e)}", level=messages.ERROR)
+                return  
+
+        super().save_model(request, obj, form, change)
+
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         from django import forms
         if db_field.name == 'tipo':
