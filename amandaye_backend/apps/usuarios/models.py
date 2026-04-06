@@ -74,13 +74,14 @@ class Socios(models.Model):
     class Meta:
         db_table = 'socios'
         verbose_name_plural = 'Socios'
+        verbose_name = 'Socio'
 
     def __str__(self):
         try:
             persona = Personas.objects.get(Cedula=self.cedulaTitular)
             return f"{persona.nombre_completo()}"
         except Personas.DoesNotExist:
-            return f"Socio object ({self.numero})"
+            return f"Socio N° {self.numero}"
 
     @property
     def esta_activo(self):
