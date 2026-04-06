@@ -79,8 +79,8 @@ def crear_solicitud_socio(datos_titular: dict, datos_familiares: list = None) ->
     Socios_cambios.objects.create(
         id=nuevo_id,
         fecha=datetime.date.today(),
-        accion="SOLICITUD INGRESO",
-        comentario=f"Socio {numero_socio} registrado en estado pendiente."
+        accion="Alta",
+        comentario=f"[SOLICITUD INGRESO] Socio {numero_socio} registrado en estado pendiente."
     )
     
     return socio
@@ -134,8 +134,8 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socio
     Socios_cambios.objects.create(
         id=nuevo_id,
         fecha=datetime.date.today(),
-        accion="APROBADO",
-        comentario=f"Socio {socio.numero} dado de ALTA funcional. Cuenta {cuenta.id} generada."
+        accion="Alta",
+        comentario=f"[APROBADO] Socio {socio.numero} dado de ALTA funcional. Cuenta {cuenta.id} generada."
     )
     return socio
 
@@ -167,7 +167,7 @@ def dar_baja_socio(socio: Socios, motivo: str = "Baja Administrativa") -> Socios
     Socios_cambios.objects.create(
         id=nuevo_id,
         fecha=datetime.date.today(),
-        accion="BAJA",
+        accion="Baja",
         comentario=motivo
     )
     return socio
