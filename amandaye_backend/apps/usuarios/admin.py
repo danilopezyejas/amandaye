@@ -157,7 +157,58 @@ class EstadoActivoFilter(admin.SimpleListFilter):
 
 @admin.register(Socios)
 class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
-    list_display = ("numero", "cedula", "nombre_completo_socio", "tipo", "estado_activo")
+    list_display = ("numero", "cedula", "nombre_completo_socio", "tipo", "estado_activo", "tiene_cuenta")
+    actions = ['aprobar_socios_seleccionados', 'dar_baja_socios_seleccionados']
+
+    @admin.display(description="Cuenta", boolean=True)
+    def tiene_cuenta(self, obj):
+        return hasattr(obj, 'cuenta_corriente') and obj.cuenta_corriente is not None
+
+    @admin.action(description='Aprobar Socios Pendientes (Alta + Crear CC)')
+    def aprobar_socios_seleccionados(self, request, queryset):
+        from apps.usuarios.services.socios import aprobar_socio
+        count = 0
+        from django.core.exceptions import ValidationError
+        from django.contrib import messages
+        errores = []
+        for socio in queryset:
+            try:
+                aprobar_socio(socio)
+                count += 1
+            except ValidationError as e:
+                msg = e.message if hasattr(e, 'message') else str(e)
+                errores.append(f"Socio {socio.numero}: {msg}")
+            except Exception as e:
+                errores.append(f"Socio {socio.numero}: {str(e)}")
+                
+        if count:
+            self.message_user(request, f"{count} socios aprobados exitosamente.", level=messages.SUCCESS)
+        if errores:
+            for error in errores:
+                self.message_user(request, error, level=messages.ERROR)
+
+    @admin.action(description='Dar de Baja a Socios')
+    def dar_baja_socios_seleccionados(self, request, queryset):
+        from apps.usuarios.services.socios import dar_baja_socio
+        count = 0
+        from django.core.exceptions import ValidationError
+        from django.contrib import messages
+        errores = []
+        for socio in queryset:
+            try:
+                dar_baja_socio(socio, motivo="Baja Administrativa masiva (Panel)")
+                count += 1
+            except ValidationError as e:
+                msg = e.message if hasattr(e, 'message') else str(e)
+                errores.append(f"Socio {socio.numero}: {msg}")
+            except Exception as e:
+                errores.append(f"Socio {socio.numero}: {str(e)}")
+                
+        if count:
+            self.message_user(request, f"{count} socios dados de baja exitosamente.", level=messages.SUCCESS)
+        if errores:
+            for error in errores:
+                self.message_user(request, error, level=messages.ERROR)
     search_fields = ("numero", "cedulaTitular")
     list_filter = (EstadoActivoFilter, "tipo")
 

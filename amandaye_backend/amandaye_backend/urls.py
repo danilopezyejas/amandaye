@@ -26,6 +26,7 @@ urlpatterns = [
     # path('api/brevet/', include('apps.brevet.urls')),
     # path('api/horarios/', include('apps.horarios.urls')),
     path('api/usuarios/', include('apps.usuarios.urls')),
+    path('api/', include('apps.usuarios.api_urls')),
     path('api/cobranzas/', include('apps.cobranzas.urls')),
     # path('api/amandaye_web/', include('amandaye_web.urls')),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -82,6 +82,18 @@ class Socios(models.Model):
         except Personas.DoesNotExist:
             return f"Socio object ({self.numero})"
 
+    @property
+    def esta_activo(self):
+        return self.activo == 1
+
+    @property
+    def esta_de_baja(self):
+        return self.activo == 0
+
+    @property
+    def esta_pendiente(self):
+        return self.activo == 2
+
 
 class Socios_cambios(models.Model):
     id = models.IntegerField(primary_key=True)
