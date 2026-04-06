@@ -22,8 +22,8 @@ class CuentaCorriente(models.Model):
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ACTIVA)
     fecha_apertura = models.DateField(auto_now_add=True)
     fecha_cierre = models.DateField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 
     class Meta:
         verbose_name = 'Cuenta Corriente'
@@ -38,8 +38,8 @@ class ConceptoCobro(models.Model):
     descripcion = models.TextField(null=True, blank=True)
     importe_por_defecto = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Importe", help_text="Precio actual o base")
     activo = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 
     class Meta:
         verbose_name = 'Concepto de Cobro'
@@ -63,8 +63,8 @@ class Cargo(models.Model):
     importe = models.DecimalField(max_digits=10, decimal_places=2)
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE)
     observaciones = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 
     class Meta:
         verbose_name = 'Cargo'
@@ -104,8 +104,8 @@ class Pago(models.Model):
     medio_pago = models.CharField(max_length=20, choices=MedioPago.choices)
     referencia = models.CharField(max_length=100, null=True, blank=True)
     observaciones = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 
     class Meta:
         verbose_name = 'Pago'
@@ -129,8 +129,8 @@ class AplicacionPago(models.Model):
     pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='aplicaciones')
     cargo = models.ForeignKey(Cargo, on_delete=models.PROTECT, related_name='aplicaciones')
     importe_aplicado = models.DecimalField(max_digits=10, decimal_places=2)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 
     class Meta:
         verbose_name = 'Aplicación de Pago'

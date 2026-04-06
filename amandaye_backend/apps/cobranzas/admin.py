@@ -16,11 +16,21 @@ class CuentaCorrienteAdmin(admin.ModelAdmin):
 
     @admin.display(description="Resumen de Cuenta")
     def estado_cuenta_resumen(self, obj):
+        from django.utils.html import format_html
         res = obtener_estado_cuenta(obj)
-        return (
-            f"Saldo Total Pendiente: ${res['saldo_total']}\n"
-            f"Deuda Vencida: ${res['deuda_vencida']}\n"
-            f"Estado de Cargos: {res['resumen_estados']}"
+        
+        estados_html = "<ul>"
+        for est, cant in res.get('resumen_estados', {}).items():
+            estados_html += f"<li>{est}: {cant}</li>"
+        if not res.get('resumen_estados'):
+            estados_html += "<li>Sin cargos</li>"
+        estados_html += "</ul>"
+
+        return format_html(
+            "<strong>Saldo Total Pendiente:</strong> ${}<br>"
+            "<strong>Deuda Vencida:</strong> ${}<br>"
+            "<strong>Estado de Cargos:</strong>{}",
+            res['saldo_total'], res['deuda_vencida'], format_html(estados_html)
         )
 
 @admin.register(ConceptoCobro)

@@ -234,7 +234,7 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
                 from django.contrib import messages
                 try:
                     dar_baja_socio(obj, motivo="Baja manual desde selector de formulario")
-                    self.message_user(request, "Socio dado de baja limpiamente.", level=messages.SUCCESS)
+                    self.message_user(request, "Socio dado de baja correctamente.", level=messages.SUCCESS)
                 except Exception as e:
                     self.message_user(request, f"Error dando de baja: {str(e)}", level=messages.ERROR)
                 return  
