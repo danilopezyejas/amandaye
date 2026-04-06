@@ -28,18 +28,6 @@ class Historico_socios(models.Model):
         verbose_name_plural = 'Historico Socios'
 
 
-class Pagos(models.Model):
-    id = models.IntegerField(primary_key=True)
-    id_socio = models.IntegerField(null=True, blank=True)
-    fecha = models.DateField()
-    cantidad = models.IntegerField(null=True, blank=True)
-    monto = models.IntegerField()
-
-    class Meta:
-        db_table = 'pagos'
-        verbose_name_plural = 'Pagos'
-
-
 class Personas(models.Model):
     Cedula = models.CharField(max_length=11, primary_key=True, verbose_name="Cédula")
     numeroSocio = models.IntegerField(verbose_name="Número de socio")
@@ -66,31 +54,6 @@ class Personas(models.Model):
     def nombre_completo(self):
         return f"{self.PrimerNombre} {self.SegundoNombre or ''} {self.PrimerApellido} {self.SegundoApellido or ''}".strip()
 
-
-
-class Precios(models.Model):
-    id = models.IntegerField(primary_key=True)
-    monto = models.IntegerField()
-    tipo = models.TextField()
-    vigente = models.IntegerField()
-    fecha = models.DateField(null=True, blank=True)
-
-    class Meta:
-        db_table = 'precios'
-        verbose_name_plural = 'Precios'
-
-
-class Recibos(models.Model):
-    id = models.IntegerField(primary_key=True)
-    fecha = models.DateField()
-    estado = models.IntegerField()
-    monto = models.IntegerField()
-    id_socio = models.CharField(max_length=8)
-    id_pago = models.IntegerField(null=True, blank=True)
-
-    class Meta:
-        db_table = 'recibos'
-        verbose_name_plural = 'Recibos'
 
 
 class Socios(models.Model):

@@ -3,10 +3,7 @@ from django.db.models import Q
 from .models import (
     Embarcaciones,
     Historico_socios,
-    Pagos,
     Personas,
-    Precios,
-    Recibos,
     Socios,
     Socios_cambios,
 )
@@ -240,7 +237,4 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
 
 #admin.site.register(Embarcaciones)
 #admin.site.register(Historico_socios)
-admin.site.register(Pagos)
-#admin.site.register(Precios)
-#admin.site.register(Recibos)
 #admin.site.register(Socios_cambios)
