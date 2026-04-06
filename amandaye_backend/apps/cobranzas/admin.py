@@ -19,12 +19,11 @@ class CuentaCorrienteAdmin(admin.ModelAdmin):
         from django.utils.html import format_html
         res = obtener_estado_cuenta(obj)
         
-        estados_html = "<ul>"
+        estados_html = ""
         for est, cant in res.get('resumen_estados', {}).items():
-            estados_html += f"<li>{est}: {cant}</li>"
+            estados_html += f"<br>&nbsp;&nbsp;&nbsp;&nbsp;• {est}: {cant}"
         if not res.get('resumen_estados'):
-            estados_html += "<li>Sin cargos</li>"
-        estados_html += "</ul>"
+            estados_html += "<br>&nbsp;&nbsp;&nbsp;&nbsp;• Sin cargos"
 
         return format_html(
             "<strong>Saldo Total Pendiente:</strong> ${}<br>"
