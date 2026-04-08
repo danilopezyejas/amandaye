@@ -9,6 +9,8 @@ class SocioLifecycleTestCase(TestCase):
     def setUp(self):
         # Crear concepto base para probar reingresos
         ConceptoCobro.objects.create(codigo="MATRICULA", nombre="Matricula Base", importe_por_defecto=2000.00)
+        ConceptoCobro.objects.create(codigo="CUOTA_INDIVIDUAL", nombre="Cuota Mes Ind", importe_por_defecto=1500.00)
+        ConceptoCobro.objects.create(codigo="CUOTA_FAMILIAR", nombre="Cuota Mes Fam", importe_por_defecto=2500.00)
 
     def test_crear_solicitud_socio_pendiente(self):
         datos_titular = {
@@ -31,9 +33,9 @@ class SocioLifecycleTestCase(TestCase):
         self.assertTrue(hasattr(socio_aprobado, 'cuenta_corriente'))
         self.assertEqual(socio_aprobado.cuenta_corriente.socio_titular, socio_aprobado)
 
-        # Chequear que se genero un cargo
-        cargo_mat = Cargo.objects.filter(cuenta=socio_aprobado.cuenta_corriente).first()
-        self.assertIsNotNone(cargo_mat)
+        # Chequear que se genero matrícula y cuota
+        cargos = Cargo.objects.filter(cuenta=socio_aprobado.cuenta_corriente)
+        self.assertEqual(cargos.count(), 2)
 
     def test_reingreso_antes_de_un_ano_matricula_doble(self):
         datos_titular = {"Cedula": "11111111", "PrimerNombre": "Carlos"}
@@ -54,7 +56,24 @@ class SocioLifecycleTestCase(TestCase):
         
         # Segun la logica el monto doble es 4000.00
         from decimal import Decimal
+        cargo_mat = Cargo.objects.filter(cuenta=socio_aprobado.cuenta_corriente, concepto__codigo="MATRICULA").first()
         self.assertEqual(cargo_mat.importe, Decimal('4000.00'))
+
+    def test_aprobar_socio_con_deuda_arroja_error(self):
+        datos_titular = {"Cedula": "33333333", "PrimerNombre": "Marta"}
+        socio = crear_solicitud_socio(datos_titular)
+        socio_aprobado = aprobar_socio(socio)
+        
+        # Simulamos que le dimos baja manteniendo cuenta abierta con deuda (los cargos no se borraron)
+        socio_aprobado.activo = 0
+        socio_aprobado.save()
+        
+        # Intentamos re-alta sin pagar (la cuenta sigue ahi, los cargos siguen PENDIENTE)
+        socio_aprobado.activo = 2
+        socio_aprobado.save()
+        
+        with self.assertRaisesMessage(ValidationError, "arrastra una deuda pendiente"):
+            aprobar_socio(socio_aprobado)
 
     def test_dar_baja_socio(self):
         datos_titular = {"Cedula": "22222222", "PrimerNombre": "Luis"}

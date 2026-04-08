@@ -96,6 +96,14 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socio
         else:
             raise ValidationError("Socio no está PENDIENTE. Asegúrese de realizar el reingreso correspondiente.")
 
+    # VALIDACION DE DEUDA HISTORICA (Reafiliación)
+    cuenta_historica = CuentaCorriente.objects.filter(socio_titular=socio).first()
+    if cuenta_historica:
+        from apps.cobranzas.services.cuentas import obtener_estado_cuenta
+        estado_cuenta = obtener_estado_cuenta(cuenta_historica)
+        if estado_cuenta['saldo_total'] > 0:
+            raise ValidationError(f"El socio arrastra una deuda pendiente de ${estado_cuenta['saldo_total']}. Debe abonar su saldo histórico antes de reafiliarse.")
+
     socio.activo = 1
     socio.fechaAlta = datetime.date.today()
     socio.save()
@@ -128,6 +136,22 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socio
             )
         except ConceptoCobro.DoesNotExist:
             pass # Sin seed the conceptos
+
+        # GENERAR PRIMERA CUOTA MENSUAL
+        codigo_cuota = "CUOTA_FAMILIAR" if socio.tipo and 'familiar' in socio.tipo.lower() else "CUOTA_INDIVIDUAL"
+        try:
+            concepto_cuota = ConceptoCobro.objects.get(codigo=codigo_cuota)
+            crear_cargo(
+                cuenta=cuenta,
+                concepto=concepto_cuota,
+                periodo=datetime.date.today().strftime('%Y-%m'),
+                fecha_emision=datetime.date.today(),
+                fecha_vencimiento=datetime.date.today() + datetime.timedelta(days=10),
+                importe=concepto_cuota.importe_por_defecto,
+                observaciones=f"Cuota Mensual ({socio.tipo})"
+            )
+        except ConceptoCobro.DoesNotExist:
+            pass
             
     ultimo_cambio = Socios_cambios.objects.order_by('-id').first()
     nuevo_id = ultimo_cambio.id + 1 if ultimo_cambio else 1
