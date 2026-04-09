@@ -162,7 +162,16 @@ class EstadoActivoFilter(admin.SimpleListFilter):
 class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
     list_display = ("numero", "cedula", "nombre_completo_socio", "tipo", "estado_activo", "tiene_cuenta", "fechaSolicitud", "fechaAprobacion", "fechaAlta")
     readonly_fields = ("fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
-    actions = ['aprobar_socios_seleccionados', 'rechazar_socios_seleccionados', 'dar_baja_socios_seleccionados']
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'aprobar_socios_seleccionados' in actions and not request.user.has_perm('usuarios.puede_aprobar_socio'):
+            del actions['aprobar_socios_seleccionados']
+        if 'rechazar_socios_seleccionados' in actions and not request.user.has_perm('usuarios.puede_rechazar_socio'):
+            del actions['rechazar_socios_seleccionados']
+        if 'dar_baja_socios_seleccionados' in actions and not request.user.has_perm('usuarios.puede_dar_baja_socio'):
+            del actions['dar_baja_socios_seleccionados']
+        return actions
 
     @admin.display(description="Cuenta", boolean=True)
     def tiene_cuenta(self, obj):

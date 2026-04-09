@@ -30,7 +30,7 @@ class CuentaCorriente(models.Model):
         verbose_name_plural = 'Cuentas Corrientes'
 
     def __str__(self):
-        return f"Cuenta {self.tipo_cuenta} - Socio {self.socio_titular.numero}"
+        return f"{self.socio_titular} - Cuenta {self.get_tipo_cuenta_display()} - Socio Nº {self.socio_titular.numero}"
 
 class ConceptoCobro(models.Model):
     codigo = models.CharField(max_length=50, unique=True)
@@ -69,6 +69,9 @@ class Cargo(models.Model):
     class Meta:
         verbose_name = 'Cargo'
         verbose_name_plural = 'Cargos'
+        permissions = [
+            ("puede_anular_cargo", "Puede anular cargos generados"),
+        ]
         constraints = [
             models.CheckConstraint(check=models.Q(importe__gt=0), name='cargo_importe_gt_0')
         ]
@@ -110,6 +113,10 @@ class Pago(models.Model):
     class Meta:
         verbose_name = 'Pago'
         verbose_name_plural = 'Pagos'
+        permissions = [
+            ("puede_aplicar_pago", "Puede aplicar parcial o totalmente saldos de pago"),
+            ("puede_ver_resumen_cobranzas", "Puede ver resúmenes generales financieros"),
+        ]
         constraints = [
             models.CheckConstraint(check=models.Q(importe_total__gt=0), name='pago_importe_gt_0')
         ]
@@ -142,6 +149,9 @@ class AplicacionPago(models.Model):
     class Meta:
         verbose_name = 'Aplicación de Pago'
         verbose_name_plural = 'Aplicaciones de Pagos'
+        permissions = [
+            ("puede_revertir_aplicacion_pago", "Puede revertir aplicaciones de pago"),
+        ]
         constraints = [
             models.CheckConstraint(check=models.Q(importe_aplicado__gt=0), name='aplicacion_importe_gt_0')
         ]

@@ -9,6 +9,22 @@ class CuentaCorrienteAdmin(admin.ModelAdmin):
     search_fields = ('socio_titular__numero', 'socio_titular__cedulaTitular')
     readonly_fields = ('fecha_apertura', 'fecha_cierre', 'created_at', 'updated_at', 'estado_cuenta_resumen')
 
+    def get_search_results(self, request, queryset, search_term):
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        if search_term:
+            from apps.usuarios.models import Personas
+            from django.db.models import Q
+            # Buscar personas que coincidan con el texto
+            personas_qs = Personas.objects.filter(
+                Q(PrimerNombre__icontains=search_term) |
+                Q(PrimerApellido__icontains=search_term) |
+                Q(SegundoNombre__icontains=search_term) |
+                Q(SegundoApellido__icontains=search_term)
+            ).values_list('Cedula', flat=True)
+            # Agregar a las cuentas cuyos socios tengan esas cédulas
+            queryset |= self.model.objects.filter(socio_titular__cedulaTitular__in=personas_qs)
+        return queryset, use_distinct
+
     @admin.display(description="Deuda Vencida")
     def deuda_vencida_display(self, obj):
         res = obtener_estado_cuenta(obj)
@@ -73,26 +89,71 @@ class CargoAdmin(admin.ModelAdmin):
     search_fields = ('cuenta__socio_titular__numero',)
     readonly_fields = ('total_aplicado', 'saldo_pendiente', 'esta_vencido')
     inlines = [AplicacionPagoInline]
+    actions = ['anular_cargos_seleccionados']
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'anular_cargos_seleccionados' in actions and not request.user.has_perm('cobranzas.puede_anular_cargo'):
+            del actions['anular_cargos_seleccionados']
+        return actions
+
+    @admin.action(description='Anular cargos seleccionados')
+    def anular_cargos_seleccionados(self, request, queryset):
+        from apps.cobranzas.services.cargos import anular_cargo
+        from django.core.exceptions import ValidationError
+        from django.contrib import messages
+        count = 0
+        errores = []
+        for cargo in queryset:
+            try:
+                anular_cargo(cargo, observaciones="Anulación masiva desde panel administrativo")
+                count += 1
+            except ValidationError as e:
+                msg = e.message if hasattr(e, 'message') else str(e)
+                errores.append(f"Cargo {cargo.id}: {msg}")
+        if count:
+            self.message_user(request, f"{count} cargos anulados exitosamente.", level=messages.SUCCESS)
+        if errores:
+            for error in errores:
+                self.message_user(request, error, level=messages.ERROR)
+
 
 @admin.register(Pago)
 class PagoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'cuenta', 'fecha_pago', 'importe_total', 'total_aplicado', 'saldo_disponible', 'medio_pago', 'aplicar_pago_link')
     list_filter = ('medio_pago', 'fecha_pago')
     search_fields = ('cuenta__socio_titular__numero', 'referencia')
+    autocomplete_fields = ['cuenta']
     inlines = [AplicacionPagoInline]
 
+    def get_list_display(self, request):
+        base = ('id', 'cuenta', 'fecha_pago', 'importe_total', 'total_aplicado', 'saldo_disponible', 'medio_pago')
+        if request.user.has_perm('cobranzas.puede_aplicar_pago'):
+            return base + ('aplicar_pago_link',)
+        return base
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if 'cuenta' in form.base_fields:
+            form.base_fields['cuenta'].widget.can_add_related = False
+            form.base_fields['cuenta'].widget.can_change_related = False
+            form.base_fields['cuenta'].widget.can_delete_related = False
+            form.base_fields['cuenta'].widget.can_view_related = False
+        return form
+
     def get_readonly_fields(self, request, obj=None):
-        base_readonly = ('total_aplicado', 'saldo_disponible', 'aplicar_pago_link_ficha')
+        base_readonly = ['total_aplicado', 'saldo_disponible']
+        if request.user.has_perm('cobranzas.puede_aplicar_pago'):
+            base_readonly.append('aplicar_pago_link_ficha')
         if obj:
-            return base_readonly + ('cuenta', 'fecha_pago', 'importe_total', 'medio_pago')
-        return base_readonly
+            base_readonly.extend(['cuenta', 'fecha_pago', 'importe_total', 'medio_pago'])
+        return tuple(base_readonly)
 
     def get_fields(self, request, obj=None):
         fields = super().get_fields(request, obj)
-        if obj and 'aplicar_pago_link_ficha' not in fields:
-            # Inject the link field at the top if it's an existing object
-            fields = ['aplicar_pago_link_ficha'] + [f for f in fields if f != 'aplicar_pago_link_ficha']
-        elif not obj and 'aplicar_pago_link_ficha' in fields:
+        if obj and request.user.has_perm('cobranzas.puede_aplicar_pago'):
+            if 'aplicar_pago_link_ficha' not in fields:
+                fields = ['aplicar_pago_link_ficha'] + [f for f in fields if f != 'aplicar_pago_link_ficha']
+        elif 'aplicar_pago_link_ficha' in fields:
             fields.remove('aplicar_pago_link_ficha')
         return fields
 
@@ -123,6 +184,9 @@ class PagoAdmin(admin.ModelAdmin):
         return custom_urls + urls
 
     def aplicar_pago_view(self, request, pago_id):
+        from django.core.exceptions import PermissionDenied
+        if not request.user.has_perm('cobranzas.puede_aplicar_pago'):
+            raise PermissionDenied("No tienes permisos para aplicar pagos.")
         from django.shortcuts import get_object_or_404, render, redirect
         from apps.cobranzas.services.pagos import aplicar_pago
         from django.core.exceptions import ValidationError
@@ -165,6 +229,12 @@ class AplicacionPagoAdmin(admin.ModelAdmin):
     search_fields = ('pago__cuenta__socio_titular__numero',)
     readonly_fields = ('pago', 'cargo', 'importe_aplicado', 'estado', 'fecha_reversion', 'motivo_reversion', 'created_at', 'updated_at')
     actions = ['revertir_aplicaciones']
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        if 'revertir_aplicaciones' in actions and not request.user.has_perm('cobranzas.puede_revertir_aplicacion_pago'):
+            del actions['revertir_aplicaciones']
+        return actions
 
     def has_add_permission(self, request):
         return False

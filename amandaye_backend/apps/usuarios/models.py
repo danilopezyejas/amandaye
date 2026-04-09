@@ -77,6 +77,11 @@ class Socios(models.Model):
     class Meta:
         db_table = 'socios'
         verbose_name_plural = 'Socios'
+        permissions = [
+            ("puede_aprobar_socio", "Puede aprobar socios nuevos"),
+            ("puede_rechazar_socio", "Puede rechazar solicitudes de socios"),
+            ("puede_dar_baja_socio", "Puede dar de baja socios activos"),
+        ]
         verbose_name = 'Socio'
 
     def __str__(self):
