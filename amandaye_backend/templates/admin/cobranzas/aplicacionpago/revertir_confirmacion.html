@@ -1,0 +1,39 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+    <form action="" method="post">
+        {% csrf_token %}
+        <div>
+            <p><strong>Va a revertir {{ queryset|length }} aplicaciones de pago.</strong></p>
+            <ul>
+                {% for aplicacion in queryset %}
+                    <li>Aplicación {{ aplicacion.id }} - Monto: ${{ aplicacion.importe_aplicado }} al Cargo {{ aplicacion.cargo.id }} 
+                        {% if aplicacion.estado == 'REVERTIDA' %} <strong style="color:red">(YA REVERTIDA)</strong>{% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <fieldset class="module aligned">
+            <div class="form-row">
+                <label for="motivo_reversion">Motivo de Reversión (Opcional):</label>
+                <input type="text" name="motivo_reversion" id="motivo_reversion" class="vTextField" value="Reversión desde panel administrativo">
+                <p class="help">Indique un motivo para fines de auditoría.</p>
+            </div>
+        </fieldset>
+
+        <div>
+            {% for obj in queryset %}
+                <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk|unlocalize }}" />
+            {% endfor %}
+            <input type="hidden" name="action" value="revertir_aplicaciones" />
+            <input type="hidden" name="post" value="yes" />
+            <div class="submit-row">
+                <input type="submit" value="Sí, estoy seguro" class="default">
+                <a href="#" class="button cancel-link" onclick="window.history.back(); return false;">No, cancelar</a>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}

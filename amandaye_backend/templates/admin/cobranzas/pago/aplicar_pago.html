@@ -1,0 +1,67 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+    /* Forzar texto blanco en los mensajes de error para garantizar contraste */
+    ul.messagelist li.error {
+        color: white !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <form action="" method="post">
+        {% csrf_token %}
+        <fieldset class="module aligned">
+            <h2>Pago Original</h2>
+            <div class="form-row">
+                <label>Pago ID:</label>
+                <p>{{ pago.id }}</p>
+            </div>
+            <div class="form-row">
+                <label>Socio Cuenta:</label>
+                <p>{{ pago.cuenta.socio_titular }}</p>
+            </div>
+            <div class="form-row">
+                <label>Importe Total Pago:</label>
+                <p>${{ pago.importe_total }}</p>
+            </div>
+            <div class="form-row">
+                <label>Saldo Disponible para Aplicar:</label>
+                <p><strong>${{ pago.saldo_disponible }}</strong></p>
+            </div>
+        </fieldset>
+
+        <fieldset class="module aligned">
+            <h2>Seleccionar Cargo a Pagar</h2>
+            {% if cargos %}
+                <div class="form-row">
+                    <label class="required" for="cargo_id">Cargo Pendiente:</label>
+                    <select name="cargo_id" id="cargo_id" required>
+                        <option value="">---------</option>
+                        {% for c in cargos %}
+                            <option value="{{ c.id }}">Cargo {{ c.id }} - {{ c.concepto.nombre }} {{ c.periodo }} (Saldo: ${{ c.saldo_pendiente }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label class="required" for="importe">Importe a Aplicar:</label>
+                    <input type="number" step="0.01" name="importe" id="importe" max="{{ pago.saldo_disponible }}" min="0.01" required>
+                    <p class="help">Ingrese el monto a aplicar. No debe superar el saldo pendiente del cargo ni el saldo disponible del pago.</p>
+                </div>
+            {% else %}
+                <div class="form-row">
+                    <p>No hay cargos pendientes o parciales para la cuenta de este pago.</p>
+                </div>
+            {% endif %}
+        </fieldset>
+
+        <div class="submit-row">
+            <input type="submit" value="Aplicar Saldo" class="default" {% if not cargos %}disabled{% endif %}>
+            <a href="{% url 'admin:cobranzas_pago_change' pago.pk %}" class="button cancel-link">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

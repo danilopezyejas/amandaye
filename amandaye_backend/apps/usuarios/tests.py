@@ -293,3 +293,43 @@ class CobranzasTest(SetUpConceptosMixin, TestCase):
             concepto__codigo="MATRICULA"
         ).order_by('-id').first()
         self.assertEqual(cargo_mat.importe, Decimal('4000.00'))  # importe_por_defecto * 2
+
+    def test_22_aplicacion_pago_clean_saldos(self):
+        """clean() de AplicacionPago debe arrojar error si supera saldo de cargo o pago."""
+        socio = crear_solicitud_socio(titular(Cedula="80000007"))
+        aprobar_socio(socio)
+        cc = socio.cuenta_corriente
+        cargo = Cargo.objects.filter(cuenta=cc, concepto__codigo="MATRICULA").first()
+        
+        # Supera el importe del pago
+        pago_corto = registrar_pago(cc, datetime.date.today(), Decimal('500.00'), 'EFECTIVO')
+        app_corta = AplicacionPago(pago=pago_corto, cargo=cargo, importe_aplicado=Decimal('1000.00'))
+        with self.assertRaises(ValidationError) as cm:
+            app_corta.clean()
+        self.assertIn("supera el saldo disponible del pago", str(cm.exception))
+
+        # Supera el saldo del cargo
+        pago_largo = registrar_pago(cc, datetime.date.today(), Decimal('10000.00'), 'EFECTIVO')
+        app_larga = AplicacionPago(pago=pago_largo, cargo=cargo, importe_aplicado=Decimal('5000.00'))
+        with self.assertRaises(ValidationError) as cm:
+            app_larga.clean()
+        self.assertIn("supera el saldo pendiente del cargo", str(cm.exception))
+
+    def test_23_aplicacion_pago_clean_cuentas_distintas(self):
+        """clean() de AplicacionPago debe arrojar error si pago y cargo son de cuentas distintas."""
+        socio1 = crear_solicitud_socio(titular(Cedula="90000001"))
+        socio2 = crear_solicitud_socio(titular(Cedula="90000002"))
+        aprobar_socio(socio1)
+        aprobar_socio(socio2)
+        
+        cc1 = socio1.cuenta_corriente
+        cc2 = socio2.cuenta_corriente
+        
+        cargo1 = Cargo.objects.filter(cuenta=cc1).first()
+        pago2 = registrar_pago(cc2, datetime.date.today(), Decimal('500.00'), 'EFECTIVO')
+        
+        # Intento pagar cargo de CC1 con un pago de CC2
+        app = AplicacionPago(pago=pago2, cargo=cargo1, importe_aplicado=Decimal('500.00'))
+        with self.assertRaises(ValidationError) as cm:
+            app.clean()
+        self.assertIn("misma cuenta", str(cm.exception))

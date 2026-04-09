@@ -148,3 +148,24 @@ class AplicacionPago(models.Model):
 
     def __str__(self):
         return f"Aplicación {self.id}: {self.importe_aplicado} al Cargo {self.cargo.id} [{self.estado}]"
+
+    def clean(self):
+        super().clean()
+        from django.core.exceptions import ValidationError
+        
+        if getattr(self, 'importe_aplicado', 0) is not None and self.importe_aplicado <= 0:
+            raise ValidationError({'importe_aplicado': "El importe aplicado debe ser mayor a 0."})
+            
+        if getattr(self, 'pago_id', None) and getattr(self, 'cargo_id', None):
+            if self.pago.cuenta_id != self.cargo.cuenta_id:
+                raise ValidationError("El pago y el cargo deben pertenecer a la misma cuenta.")
+                
+            if self.cargo.estado == self.cargo.Estado.ANULADO:
+                raise ValidationError({'cargo': "No se puede aplicar a un cargo anulado."})
+                
+            # Solo validamos saldos si es una aplicación nueva (para no romper ediciones/reversiones)
+            if not self.pk and self.estado == self.Estado.ACTIVA:
+                if self.importe_aplicado > self.pago.saldo_disponible:
+                    raise ValidationError({'importe_aplicado': f"El importe supera el saldo disponible del pago (${self.pago.saldo_disponible})."})
+                if self.importe_aplicado > self.cargo.saldo_pendiente:
+                    raise ValidationError({'importe_aplicado': f"El importe supera el saldo pendiente del cargo (${self.cargo.saldo_pendiente})."})
