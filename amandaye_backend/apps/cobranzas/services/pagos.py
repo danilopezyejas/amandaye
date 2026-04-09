@@ -49,13 +49,25 @@ def aplicar_pago(pago: Pago, cargo: Cargo, importe_aplicar: Decimal) -> Aplicaci
     return aplicacion
 
 @transaction.atomic
-def revertir_aplicacion(aplicacion: AplicacionPago):
+def revertir_aplicacion(aplicacion: AplicacionPago, motivo: str = None):
+    from django.utils import timezone
+    if aplicacion.estado == AplicacionPago.Estado.REVERTIDA:
+        from django.core.exceptions import ValidationError
+        raise ValidationError("Esta aplicación ya fue revertida.")
+
     cargo = aplicacion.cargo
-    aplicacion.delete()
     
-    # Recalculamos el saldo directamente sin la aplicacion borrada
-    if cargo.saldo_pendiente == cargo.importe:
+    # Soft-delete: marcar como revertida sin borrar el registro
+    aplicacion.estado = AplicacionPago.Estado.REVERTIDA
+    aplicacion.fecha_reversion = timezone.now()
+    aplicacion.motivo_reversion = motivo or "Reversión manual"
+    aplicacion.save()
+    
+    # Recalculamos el estado del cargo en base a las aplicaciones ACTIVAS restantes
+    if cargo.saldo_pendiente >= cargo.importe:
         cargo.estado = Cargo.Estado.PENDIENTE
-    else:
+    elif cargo.saldo_pendiente > 0:
         cargo.estado = Cargo.Estado.PARCIAL
+    else:
+        cargo.estado = Cargo.Estado.PAGADO
     cargo.save()

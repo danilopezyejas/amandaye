@@ -41,6 +41,14 @@ def obtener_estado_cuenta(cuenta: CuentaCorriente) -> dict:
         if c.estado not in resumen:
             resumen[c.estado] = 0
         resumen[c.estado] += 1
+
+    # Estado general de la cuenta
+    if saldo_total <= 0:
+        estado_cuenta = 'AL_DIA'
+    elif cuenta.estado == CuentaCorriente.Estado.CERRADA:
+        estado_cuenta = 'MOROSO'
+    else:
+        estado_cuenta = 'CON_DEUDA'
         
     return {
         'titular': cuenta.socio_titular.numero,
@@ -48,6 +56,7 @@ def obtener_estado_cuenta(cuenta: CuentaCorriente) -> dict:
         'saldo_total': saldo_total,
         'deuda_vencida': deuda_vencida,
         'resumen_estados': resumen,
+        'estado_cuenta': estado_cuenta,
         'cargos': cargos,
         'pagos': pagos
     }

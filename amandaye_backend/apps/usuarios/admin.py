@@ -144,6 +144,7 @@ class EstadoActivoFilter(admin.SimpleListFilter):
             ('1', 'ALTA'),
             ('0', 'BAJA'),
             ('2', 'PENDIENTE'),
+            ('3', 'RECHAZADO'),
         )
 
     def queryset(self, request, queryset):
@@ -153,12 +154,15 @@ class EstadoActivoFilter(admin.SimpleListFilter):
             return queryset.filter(activo=0)
         if self.value() == '2':
             return queryset.filter(activo=2)
+        if self.value() == '3':
+            return queryset.filter(activo=3)
         return queryset
 
 @admin.register(Socios)
 class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
-    list_display = ("numero", "cedula", "nombre_completo_socio", "tipo", "estado_activo", "tiene_cuenta")
-    actions = ['aprobar_socios_seleccionados', 'dar_baja_socios_seleccionados']
+    list_display = ("numero", "cedula", "nombre_completo_socio", "tipo", "estado_activo", "tiene_cuenta", "fechaSolicitud", "fechaAprobacion", "fechaAlta")
+    readonly_fields = ("fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
+    actions = ['aprobar_socios_seleccionados', 'rechazar_socios_seleccionados', 'dar_baja_socios_seleccionados']
 
     @admin.display(description="Cuenta", boolean=True)
     def tiene_cuenta(self, obj):
@@ -183,6 +187,28 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
                 
         if count:
             self.message_user(request, f"{count} socios aprobados exitosamente.", level=messages.SUCCESS)
+        if errores:
+            for error in errores:
+                self.message_user(request, error, level=messages.ERROR)
+
+    @admin.action(description='Rechazar Solicitudes Pendientes')
+    def rechazar_socios_seleccionados(self, request, queryset):
+        from apps.usuarios.services.socios import rechazar_socio
+        from django.core.exceptions import ValidationError
+        from django.contrib import messages
+        count = 0
+        errores = []
+        for socio in queryset:
+            try:
+                rechazar_socio(socio, motivo="Rechazo masivo desde panel administrativo")
+                count += 1
+            except ValidationError as e:
+                msg = e.message if hasattr(e, 'message') else str(e)
+                errores.append(f"Socio {socio.numero}: {msg}")
+            except Exception as e:
+                errores.append(f"Socio {socio.numero}: {str(e)}")
+        if count:
+            self.message_user(request, f"{count} solicitudes rechazadas.", level=messages.SUCCESS)
         if errores:
             for error in errores:
                 self.message_user(request, error, level=messages.ERROR)
@@ -216,28 +242,37 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
         if change and 'activo' in form.changed_data:
             viejo_activo = form.initial.get('activo')
             nuevo_activo = form.cleaned_data.get('activo')
-            
+            from django.contrib import messages
+
             if viejo_activo == 2 and nuevo_activo == 1:
-                obj.activo = viejo_activo 
+                obj.activo = viejo_activo
                 from apps.usuarios.services.socios import aprobar_socio
-                from django.contrib import messages
                 try:
                     aprobar_socio(obj)
-                    self.message_user(request, "Socio aprobado automáticamente y Cuenta Corriente generada.", level=messages.SUCCESS)
+                    self.message_user(request, "Socio aprobado y Cuenta Corriente generada.", level=messages.SUCCESS)
                 except Exception as e:
-                    self.message_user(request, f"Error generando cuenta: {str(e)}", level=messages.ERROR)
-                return  
-            
+                    self.message_user(request, f"Error al aprobar: {str(e)}", level=messages.ERROR)
+                return
+
+            elif viejo_activo == 2 and nuevo_activo == 3:
+                obj.activo = viejo_activo
+                from apps.usuarios.services.socios import rechazar_socio
+                try:
+                    rechazar_socio(obj, motivo="Rechazo manual desde formulario")
+                    self.message_user(request, "Solicitud rechazada correctamente.", level=messages.SUCCESS)
+                except Exception as e:
+                    self.message_user(request, f"Error al rechazar: {str(e)}", level=messages.ERROR)
+                return
+
             elif viejo_activo in [1, 2] and nuevo_activo == 0:
-                obj.activo = viejo_activo 
+                obj.activo = viejo_activo
                 from apps.usuarios.services.socios import dar_baja_socio
-                from django.contrib import messages
                 try:
                     dar_baja_socio(obj, motivo="Baja manual desde selector de formulario")
                     self.message_user(request, "Socio dado de baja correctamente.", level=messages.SUCCESS)
                 except Exception as e:
                     self.message_user(request, f"Error dando de baja: {str(e)}", level=messages.ERROR)
-                return  
+                return
 
         super().save_model(request, obj, form, change)
 
@@ -254,7 +289,8 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
         estados = {
             1: "ALTA",
             0: "BAJA",
-            2: "PENDIENTE"
+            2: "PENDIENTE",
+            3: "RECHAZADO",
         }
         return estados.get(obj.activo, "-")
 

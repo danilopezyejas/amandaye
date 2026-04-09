@@ -78,7 +78,7 @@ class Cargo(models.Model):
 
     @property
     def total_aplicado(self) -> Decimal:
-        return self.aplicaciones.aggregate(total=Sum('importe_aplicado'))['total'] or Decimal('0.00')
+        return self.aplicaciones.filter(estado='ACTIVA').aggregate(total=Sum('importe_aplicado'))['total'] or Decimal('0.00')
 
     @property
     def saldo_pendiente(self) -> Decimal:
@@ -119,16 +119,23 @@ class Pago(models.Model):
 
     @property
     def total_aplicado(self) -> Decimal:
-        return self.aplicaciones.aggregate(total=Sum('importe_aplicado'))['total'] or Decimal('0.00')
+        return self.aplicaciones.filter(estado='ACTIVA').aggregate(total=Sum('importe_aplicado'))['total'] or Decimal('0.00')
 
     @property
     def saldo_disponible(self) -> Decimal:
         return self.importe_total - self.total_aplicado
 
 class AplicacionPago(models.Model):
+    class Estado(models.TextChoices):
+        ACTIVA = 'ACTIVA', 'Activa'
+        REVERTIDA = 'REVERTIDA', 'Revertida'
+
     pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='aplicaciones')
     cargo = models.ForeignKey(Cargo, on_delete=models.PROTECT, related_name='aplicaciones')
     importe_aplicado = models.DecimalField(max_digits=10, decimal_places=2)
+    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ACTIVA, verbose_name='Estado')
+    fecha_reversion = models.DateTimeField(null=True, blank=True, verbose_name='Fecha de reversión')
+    motivo_reversion = models.TextField(null=True, blank=True, verbose_name='Motivo de reversión')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 
@@ -140,4 +147,4 @@ class AplicacionPago(models.Model):
         ]
 
     def __str__(self):
-        return f"Aplicación {self.id}: {self.importe_aplicado} al Cargo {self.cargo.id}"
+        return f"Aplicación {self.id}: {self.importe_aplicado} al Cargo {self.cargo.id} [{self.estado}]"

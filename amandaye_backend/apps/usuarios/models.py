@@ -61,10 +61,13 @@ class Socios(models.Model):
         (1, 'ALTA'),
         (0, 'BAJA'),
         (2, 'PENDIENTE'),
+        (3, 'RECHAZADO'),
     )
     numero = models.IntegerField(primary_key=True, verbose_name="Número")
     activo = models.IntegerField(choices=ACTIVO_CHOICES, null=True, blank=True, verbose_name="Activo")
-    fechaAlta = models.DateField(verbose_name="Fecha de alta")
+    fechaSolicitud = models.DateField(null=True, blank=True, verbose_name="Fecha de solicitud")
+    fechaAprobacion = models.DateField(null=True, blank=True, verbose_name="Fecha de aprobación")
+    fechaAlta = models.DateField(null=True, blank=True, verbose_name="Fecha de alta")
     fechaBaja = models.DateField(null=True, blank=True, verbose_name="Fecha de baja")
     tipo = models.TextField(verbose_name="Tipo de socio")
     cedulaTitular = models.CharField(max_length=11, verbose_name="Cédula del titular")
@@ -94,6 +97,10 @@ class Socios(models.Model):
     @property
     def esta_pendiente(self):
         return self.activo == 2
+
+    @property
+    def esta_rechazado(self):
+        return self.activo == 3
 
 
 class Socios_cambios(models.Model):
