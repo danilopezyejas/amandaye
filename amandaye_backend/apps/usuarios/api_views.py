@@ -1,9 +1,31 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
 from django.core.exceptions import ValidationError
+from django.contrib.auth.models import User
 
 from .models import Socios, Personas
+
+class MeView(APIView):
+    """
+    Endpoint de ejemplo protegido con JWT.
+    Ruta: GET /api/me/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "is_staff": user.is_staff,
+            "is_superuser": user.is_superuser,
+            "roles": [group.name for group in user.groups.all()]
+        })
+
 from .serializers import SociosSerializer, PersonasSerializer, SolicitudSocioSerializer
 from .services.socios import crear_solicitud_socio, aprobar_socio, dar_baja_socio
 
