@@ -120,13 +120,14 @@ class CargoAdmin(admin.ModelAdmin):
 
 @admin.register(Pago)
 class PagoAdmin(admin.ModelAdmin):
+    list_display = ('id', 'cuenta', 'fecha_pago', 'importe_total', 'total_aplicado', 'saldo_disponible', 'medio_pago', 'registrado_por')
     list_filter = ('medio_pago', 'fecha_pago')
     search_fields = ('cuenta__socio_titular__numero', 'referencia')
     autocomplete_fields = ['cuenta']
     inlines = [AplicacionPagoInline]
 
     def get_list_display(self, request):
-        base = ('id', 'cuenta', 'fecha_pago', 'importe_total', 'total_aplicado', 'saldo_disponible', 'medio_pago')
+        base = ('id', 'cuenta', 'fecha_pago', 'importe_total', 'total_aplicado', 'saldo_disponible', 'medio_pago', 'registrado_por')
         if request.user.has_perm('cobranzas.puede_aplicar_pago'):
             return base + ('aplicar_pago_link',)
         return base
@@ -141,7 +142,7 @@ class PagoAdmin(admin.ModelAdmin):
         return form
 
     def get_readonly_fields(self, request, obj=None):
-        base_readonly = ['total_aplicado', 'saldo_disponible']
+        base_readonly = ['total_aplicado', 'saldo_disponible', 'registrado_por']
         if request.user.has_perm('cobranzas.puede_aplicar_pago'):
             base_readonly.append('aplicar_pago_link_ficha')
         if obj:
@@ -156,6 +157,11 @@ class PagoAdmin(admin.ModelAdmin):
         elif 'aplicar_pago_link_ficha' in fields:
             fields.remove('aplicar_pago_link_ficha')
         return fields
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.registrado_por = request.user
+        super().save_model(request, obj, form, change)
 
     @admin.display(description="Acción: Aplicar Saldo")
     def aplicar_pago_link_ficha(self, obj):
@@ -175,13 +181,55 @@ class PagoAdmin(admin.ModelAdmin):
             return format_html('<a class="button" style="background-color: #2e7d32; color: white;" href="{}">Aplicar a Cargo</a>', url)
         return "-"
 
+    change_list_template = "admin/cobranzas/pago/change_list.html"
+
     def get_urls(self):
         from django.urls import path
         urls = super().get_urls()
         custom_urls = [
+            path('resumen-mensual/', self.admin_site.admin_view(self.resumen_mensual_view), name='cobranzas_pago_resumen'),
             path('<int:pago_id>/aplicar/', self.admin_site.admin_view(self.aplicar_pago_view), name='cobranzas_pago_aplicar'),
         ]
         return custom_urls + urls
+
+    def resumen_mensual_view(self, request):
+        from django.core.exceptions import PermissionDenied
+        from django.shortcuts import render
+        from django.utils import timezone
+        import datetime
+        from django.db.models import Prefetch
+
+        if not request.user.has_perm('cobranzas.puede_ver_resumen_cobranzas'):
+            raise PermissionDenied("No tienes permisos para ver el resumen de cobranzas.")
+        
+        mes = request.GET.get('mes')
+        anio = request.GET.get('anio')
+        
+        now = timezone.now()
+        if not mes or not anio:
+            mes = now.month
+            anio = now.year
+        else:
+            mes = int(mes)
+            anio = int(anio)
+            
+        pagos = Pago.objects.filter(fecha_pago__month=mes, fecha_pago__year=anio).select_related(
+            'cuenta__socio_titular', 'registrado_por'
+        ).prefetch_related(
+            Prefetch('aplicaciones', queryset=AplicacionPago.objects.select_related('cargo__concepto'))
+        ).order_by('fecha_pago', 'id')
+        
+        total_ingresos = sum(p.importe_total for p in pagos)
+        
+        context = dict(
+            self.admin_site.each_context(request),
+            title=f"Resumen de Ingresos - {mes:02d}/{anio}",
+            pagos=pagos,
+            total=total_ingresos,
+            mes=mes,
+            anio=anio,
+        )
+        return render(request, 'admin/cobranzas/pago/resumen_mensual.html', context)
 
     def aplicar_pago_view(self, request, pago_id):
         from django.core.exceptions import PermissionDenied
@@ -201,7 +249,7 @@ class PagoAdmin(admin.ModelAdmin):
             if cargo_id and importe:
                 try:
                     cargo = Cargo.objects.get(pk=cargo_id)
-                    aplicar_pago(pago, cargo, Decimal(importe))
+                    aplicar_pago(pago, cargo, Decimal(importe), usuario=request.user)
                     messages.success(request, f"Se aplicaron ${importe} al cargo {cargo_id} exitosamente.")
                     return redirect('admin:cobranzas_pago_change', pago.pk)
                 except ValidationError as e:
@@ -224,10 +272,10 @@ class PagoAdmin(admin.ModelAdmin):
 
 @admin.register(AplicacionPago)
 class AplicacionPagoAdmin(admin.ModelAdmin):
-    list_display = ('id', 'pago', 'cargo', 'importe_aplicado', 'estado', 'fecha_reversion', 'created_at')
+    list_display = ('id', 'pago', 'cargo', 'importe_aplicado', 'estado', 'fecha_reversion', 'registrado_por')
     list_filter = ('estado',)
     search_fields = ('pago__cuenta__socio_titular__numero',)
-    readonly_fields = ('pago', 'cargo', 'importe_aplicado', 'estado', 'fecha_reversion', 'motivo_reversion', 'created_at', 'updated_at')
+    readonly_fields = ('pago', 'cargo', 'importe_aplicado', 'estado', 'fecha_reversion', 'motivo_reversion', 'registrado_por', 'created_at', 'updated_at')
     actions = ['revertir_aplicaciones']
 
     def get_actions(self, request):
@@ -264,11 +312,11 @@ class AplicacionPagoAdmin(admin.ModelAdmin):
                  self.message_user(request, f"{count} aplicaciones revertidas exitosamente.", level=messages.SUCCESS)
             return HttpResponseRedirect(request.get_full_path())
             
-        import admin
+        from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
         context = dict(
            self.admin_site.each_context(request),
            title="Confirmar Reversión de Aplicaciones",
            queryset=queryset,
-           action_checkbox_name=admin.helpers.ACTION_CHECKBOX_NAME,
+           action_checkbox_name=ACTION_CHECKBOX_NAME,
         )
         return render(request, 'admin/cobranzas/aplicacionpago/revertir_confirmacion.html', context)

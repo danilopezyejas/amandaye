@@ -1,0 +1,165 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .resumen-container {
+        padding: 20px;
+        background: white;
+    }
+    .resumen-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    .resumen-table th, .resumen-table td {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: left;
+    }
+    .resumen-table th {
+        background-color: #f4f4f4;
+        color: #333;
+    }
+    .aplicaciones-list {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 0.9em;
+        color: #555;
+    }
+    .filtro-form {
+        margin-bottom: 20px;
+        background-color: #f8f9fa;
+        padding: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        display: inline-block;
+    }
+    .filtro-form select, .filtro-form input[type=submit] {
+        padding: 5px 10px;
+        margin-right: 10px;
+    }
+    .print-button {
+        display: inline-block;
+        margin-left: 15px;
+        padding: 5px 15px;
+        background-color: #1976d2;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    @media print {
+        @page { margin: 1cm; size: A4 portrait; }
+        body * {
+            visibility: hidden;
+        }
+        #content, .resumen-container, .resumen-container * {
+            visibility: visible;
+        }
+        .resumen-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 0;
+        }
+        .filtro-form, .print-button, #header, #breadcrumbs, .hide-print {
+            display: none !important;
+        }
+        .resumen-table th {
+            background-color: #ddd !important;
+            -webkit-print-color-adjust: exact; 
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="resumen-container">
+        
+        <h2>{{ title }}</h2>
+
+        <form class="filtro-form hide-print" method="get">
+            <label for="mes">Mes:</label>
+            <select name="mes" id="mes">
+                <option value="1" {% if mes == 1 %}selected{% endif %}>Enero</option>
+                <option value="2" {% if mes == 2 %}selected{% endif %}>Febrero</option>
+                <option value="3" {% if mes == 3 %}selected{% endif %}>Marzo</option>
+                <option value="4" {% if mes == 4 %}selected{% endif %}>Abril</option>
+                <option value="5" {% if mes == 5 %}selected{% endif %}>Mayo</option>
+                <option value="6" {% if mes == 6 %}selected{% endif %}>Junio</option>
+                <option value="7" {% if mes == 7 %}selected{% endif %}>Julio</option>
+                <option value="8" {% if mes == 8 %}selected{% endif %}>Agosto</option>
+                <option value="9" {% if mes == 9 %}selected{% endif %}>Septiembre</option>
+                <option value="10" {% if mes == 10 %}selected{% endif %}>Octubre</option>
+                <option value="11" {% if mes == 11 %}selected{% endif %}>Noviembre</option>
+                <option value="12" {% if mes == 12 %}selected{% endif %}>Diciembre</option>
+            </select>
+
+            <label for="anio">Año:</label>
+            <input type="number" name="anio" id="anio" value="{{ anio }}" min="2000" max="2100">
+
+            <input type="submit" value="Filtrar" class="default">
+            
+            <a onclick="window.print();" class="print-button">🖨️ Imprimir Reporte</a>
+        </form>
+
+        <table class="resumen-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Nº Recibo</th>
+                    <th>Socio / Titular</th>
+                    <th>Medio de Pago</th>
+                    <th>Operador</th>
+                    <th>Monto Recibido ($)</th>
+                    <th>Desglose de Aplicaciones (En qué se usó)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pago in pagos %}
+                <tr>
+                    <td>{{ pago.fecha_pago|date:"d/m/Y" }}</td>
+                    <td>#{{ pago.id }}</td>
+                    <td><b>Socio N° {{ pago.cuenta.socio_titular.numero }}</b> <br> {{ pago.cuenta.socio_titular }}</td>
+                    <td>{{ pago.get_medio_pago_display }}</td>
+                    <td>{% if pago.registrado_por %}{{ pago.registrado_por.username }}{% else %}-{% endif %}</td>
+                    <td><strong>${{ pago.importe_total }}</strong></td>
+                    <td>
+                        <ul class="aplicaciones-list">
+                            {% for app in pago.aplicaciones.all %}
+                                {% if app.estado == 'ACTIVA' %}
+                                    <li><b>${{ app.importe_aplicado }}</b> &rarr; {{ app.cargo.concepto.nombre }} ({{ app.cargo.periodo }})</li>
+                                {% else %}
+                                    <li style="text-decoration: line-through; color: red;">${{ app.importe_aplicado }} (Anulado)</li>
+                                {% endif %}
+                            {% empty %}
+                                <li><i>Saldo total pendiente de aplicar a favor.</i></li>
+                            {% endfor %}
+                            
+                            {% if pago.saldo_disponible > 0 and pago.aplicaciones.all|length > 0 %}
+                                <li style="color: green; margin-top: 5px;"><i>Sobró a favor: +${{ pago.saldo_disponible }}</i></li>
+                            {% endif %}
+                        </ul>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" style="text-align: center; padding: 20px;">No se registraron cobros activos en este período.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="background-color: #fdfdfd;">
+                    <td colspan="5" style="text-align: right; font-size: 1.2em; border-top: 2px solid #ccc;"><strong>RECAUDACIÓN TOTAL MENSUAL:</strong></td>
+                    <td colspan="2" style="font-size: 1.2em; color: inset; border-top: 2px solid #ccc;"><strong>${{ total }}</strong></td>
+                </tr>
+            </tfoot>
+        </table>
+
+    </div>
+</div>
+{% endblock %}

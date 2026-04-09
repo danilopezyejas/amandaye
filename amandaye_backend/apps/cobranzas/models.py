@@ -94,6 +94,8 @@ class Cargo(models.Model):
         from datetime import date
         return self.saldo_pendiente > 0 and self.fecha_vencimiento < date.today()
 
+from django.contrib.auth.models import User
+
 class Pago(models.Model):
     class MedioPago(models.TextChoices):
         EFECTIVO = 'EFECTIVO', 'Efectivo'
@@ -107,6 +109,7 @@ class Pago(models.Model):
     medio_pago = models.CharField(max_length=20, choices=MedioPago.choices)
     referencia = models.CharField(max_length=100, null=True, blank=True)
     observaciones = models.TextField(null=True, blank=True)
+    registrado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Registrado por", related_name="pagos_registrados")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 
@@ -143,6 +146,7 @@ class AplicacionPago(models.Model):
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ACTIVA, verbose_name='Estado')
     fecha_reversion = models.DateTimeField(null=True, blank=True, verbose_name='Fecha de reversión')
     motivo_reversion = models.TextField(null=True, blank=True, verbose_name='Motivo de reversión')
+    registrado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Registrado por", related_name="aplicaciones_registradas")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 

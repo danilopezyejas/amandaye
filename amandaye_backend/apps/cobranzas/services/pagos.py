@@ -3,8 +3,9 @@ from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from apps.cobranzas.models import Pago, Cargo, AplicacionPago, CuentaCorriente
+from django.contrib.auth.models import User
 
-def registrar_pago(cuenta: CuentaCorriente, fecha_pago: datetime.date, importe_total: Decimal, medio_pago: str, referencia: str = None, observaciones: str = None) -> Pago:
+def registrar_pago(cuenta: CuentaCorriente, fecha_pago: datetime.date, importe_total: Decimal, medio_pago: str, referencia: str = None, observaciones: str = None, usuario: User = None) -> Pago:
     if importe_total <= 0:
         raise ValidationError("El importe del pago debe ser mayor a 0.")
         
@@ -14,12 +15,13 @@ def registrar_pago(cuenta: CuentaCorriente, fecha_pago: datetime.date, importe_t
         importe_total=importe_total,
         medio_pago=medio_pago,
         referencia=referencia,
-        observaciones=observaciones
+        observaciones=observaciones,
+        registrado_por=usuario
     )
     return pago
 
 @transaction.atomic
-def aplicar_pago(pago: Pago, cargo: Cargo, importe_aplicar: Decimal) -> AplicacionPago:
+def aplicar_pago(pago: Pago, cargo: Cargo, importe_aplicar: Decimal, usuario: User = None) -> AplicacionPago:
     if importe_aplicar <= 0:
         raise ValidationError("El importe a aplicar debe ser mayor a 0.")
     if pago.cuenta != cargo.cuenta:
@@ -36,7 +38,8 @@ def aplicar_pago(pago: Pago, cargo: Cargo, importe_aplicar: Decimal) -> Aplicaci
     aplicacion = AplicacionPago.objects.create(
         pago=pago,
         cargo=cargo,
-        importe_aplicado=importe_aplicar
+        importe_aplicado=importe_aplicar,
+        registrado_por=usuario
     )
     
     # Recalcular estado del cargo

@@ -51,6 +51,7 @@ class Command(BaseCommand):
                     Cargo: ['view', 'change'],  # Necesitan change si anulan cargos con el admin estandar de edicion
                     Pago: ['view', 'add', 'change'],
                     AplicacionPago: ['view'],
+                    ConceptoCobro: ['view', 'add', 'change']
                 },
                 'custom': [
                     'puede_aplicar_pago',
