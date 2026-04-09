@@ -69,7 +69,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, 'amandaye_frontend'),
+            os.path.join(BASE_DIR.parent, 'amandaye_frontend'),
             os.path.join(BASE_DIR, 'templates'),
         ],
         'APP_DIRS': True,
@@ -166,5 +166,5 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000"
 ]
 
-LOGOUT_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = 'http://localhost:5173/'
 LOGIN_REDIRECT_URL = '/admin/'
