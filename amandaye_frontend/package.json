@@ -22,6 +22,10 @@
     "vue-tsc": "^3.0.5"
   },
   "dependencies": {
-    "vue": "^3.5.18"
+    "axios": "^1.15.0",
+    "jwt-decode": "^4.0.0",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.18",
+    "vue-router": "^5.0.4"
   }
 }
