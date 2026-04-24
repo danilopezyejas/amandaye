@@ -23,8 +23,21 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
+from django.shortcuts import redirect
+from django.urls import re_path
+
+def fallback_redirect(request):
+    referer = request.META.get('HTTP_REFERER')
+    if referer:
+        return redirect(referer)
+    path = request.path
+    if path.startswith('/admin/'):
+        return redirect('/admin/')
+    return redirect('/login/')
+
 urlpatterns = [
-    path('', TemplateView.as_view(template_name='index.html')),
+    path('', fallback_redirect),
+    path('login/', admin.site.login, name='login'),
     path('admin/', admin.site.urls),
     
     # JWT Authentication Endpoints
@@ -39,3 +52,18 @@ urlpatterns = [
     path('api/cobranzas/', include('apps.cobranzas.urls')),
     # path('api/amandaye_web/', include('amandaye_web.urls')),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+def custom_404(request, exception=None):
+    referer = request.META.get('HTTP_REFERER')
+    if referer:
+        return redirect(referer)
+    req_path = request.path
+    if req_path.startswith('/admin/'):
+        return redirect('/admin/')
+    return redirect('/login/')
+
+handler404 = custom_404
+
+urlpatterns += [
+    re_path(r'^.*$', fallback_redirect)
+]

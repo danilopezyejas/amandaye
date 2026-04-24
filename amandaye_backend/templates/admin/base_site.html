@@ -52,8 +52,13 @@
         --darkened-bg: #f8f8f8 !important;
     }
 
-    /* Ocultar cualquier botón del modo oscuro residual */
-    #theme-toggle {
+    /* Ocultar botón modo oscuro en todas sus formas posibles */
+    #theme-toggle,
+    button[title="Toggle theme"],
+    button[aria-label="Toggle theme"],
+    .theme-toggle,
+    [id*="theme"],
+    [class*="theme-toggle"] {
         display: none !important;
     }
     
@@ -97,9 +102,6 @@
 {% block nav-global %}{% endblock %}
 
 {% block userlinks %}
-    {% if site_url %}
-        <a href="{{ site_url }}">{% translate 'View site' %}</a> /
-    {% endif %}
     {% if user.is_active and user.is_staff %}
         {% url 'django-admindocs-docroot' as docsroot %}
         {% if docsroot %}

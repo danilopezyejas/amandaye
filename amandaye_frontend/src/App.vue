@@ -28,9 +28,7 @@
           </div>
           <!-- Nav -->
           <a
-            href="http://localhost:8000/admin/"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="http://localhost:8000/login/"
             class="flex items-center gap-3 text-sm font-bold uppercase tracking-wider text-white hover:text-orange-300 transition-all border-2 border-orange-500/70 hover:border-orange-400 px-2 py-2 rounded-full bg-orange-600/30 hover:bg-orange-600/50 shadow-lg shadow-orange-900/30"
           >
            Acceder
