@@ -40,7 +40,7 @@ def _calcular_edad(fecha_nacimiento: datetime.date) -> int:
 
 def _validar_titular(datos: dict):
     """Valida campos obligatorios y edad del titular (>=18)."""
-    campos = ['Cedula', 'PrimerNombre', 'PrimerApellido', 'FechaNacimiento', 'Telefono', 'Direccion']
+    campos = ['Cedula', 'PrimerNombre', 'PrimerApellido', 'FechaNacimiento', 'Celular', 'Direccion']
     for campo in campos:
         if not datos.get(campo):
             raise ValidationError(f"El campo '{campo}' es obligatorio para el titular.")
@@ -139,7 +139,11 @@ def crear_solicitud_socio(datos_titular: dict, datos_familiares: list = None) ->
         FechaNacimiento=datos_titular.get("FechaNacimiento"),
         Direccion=datos_titular.get("Direccion", ""),
         Telefono=datos_titular.get("Telefono", ""),
+        Celular=datos_titular.get("Celular", ""),
+        Correo=datos_titular.get("Correo", ""),
+        salud=datos_titular.get("salud", ""),
         relacionTitular="TITULAR",
+        llave=0,
     )
 
     # Crear familiares
@@ -156,6 +160,7 @@ def crear_solicitud_socio(datos_titular: dict, datos_familiares: list = None) ->
                 SegundoApellido=f.get("SegundoApellido", ""),
                 FechaNacimiento=f.get("FechaNacimiento"),
                 relacionTitular=relacion,
+                llave=0,
             )
 
     socio = Socios.objects.create(

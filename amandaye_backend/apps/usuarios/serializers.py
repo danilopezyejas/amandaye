@@ -30,6 +30,11 @@ class PersonaPayloadSerializer(serializers.Serializer):
     SegundoApellido = serializers.CharField(max_length=100, required=False, allow_blank=True)
     FechaNacimiento = serializers.DateField(required=False, allow_null=True)
     relacionTitular = serializers.CharField(max_length=20, required=False)
+    Direccion = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    Telefono = serializers.CharField(max_length=9, required=False, allow_blank=True)
+    Celular = serializers.CharField(max_length=12, required=False, allow_blank=True)
+    Correo = serializers.EmailField(max_length=100, required=False, allow_blank=True)
+    salud = serializers.CharField(max_length=20, required=False, allow_blank=True)
 
 class SolicitudSocioSerializer(serializers.Serializer):
     datos_titular = PersonaPayloadSerializer()

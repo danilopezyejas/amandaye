@@ -74,41 +74,7 @@
           </div>
 
           <!-- Registration Form View -->
-          <div v-else class="w-full max-w-lg relative" key="form">
-            <!-- Glass Card -->
-            <div class="absolute inset-0 bg-white/10 backdrop-blur-xl rounded-3xl transform rotate-1 scale-105"></div>
-            <div class="relative bg-black/40 backdrop-blur-md border border-white/10 p-8 md:p-10 rounded-3xl shadow-2xl animate-scale-in">
-              
-              <div class="flex justify-between items-center mb-8">
-                <div>
-                  <h3 class="text-2xl font-bold text-white">Inscripción</h3>
-                  <p class="text-blue-200 text-sm">Completá tus datos para empezar</p>
-                </div>
-                <button @click="showForm = false" class="p-3 rounded-full bg-white/10 hover:bg-white/25 transition-colors text-white/70 hover:text-white border border-white/10 hover:border-white/30">
-                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-              </div>
-
-              <form @submit.prevent="submitForm" class="space-y-5 text-left">
-                <div class="space-y-1">
-                  <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Nombre Completo</label>
-                  <input type="text" v-model="form.nombre" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="Ej: Juan Pérez" required />
-                </div>
-                <div class="space-y-1">
-                  <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Email</label>
-                  <input type="email" v-model="form.email" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="juan@ejemplo.com" required />
-                </div>
-                <div class="space-y-1">
-                  <label class="text-xs font-bold text-blue-300 uppercase tracking-wider ml-1">Celular</label>
-                  <input type="tel" v-model="form.telefono" class="w-full px-5 py-3 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent outline-none text-white placeholder-white/30 transition-all hover:bg-white/10" placeholder="099 123 456" required />
-                </div>
-                
-                <button type="submit" class="w-full bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold py-4 rounded-xl shadow-lg transform transition-all hover:-translate-y-1 hover:shadow-orange-500/30 mt-4 cursor-pointer">
-                  ENVIAR SOLICITUD
-                </button>
-              </form>
-            </div>
-          </div>
+          <RegistrationForm v-else @close="showForm = false" key="form" />
         </transition>
 
         <!-- Map Modal -->
@@ -163,27 +129,11 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
+import RegistrationForm from './components/RegistrationForm.vue'
 
 const showForm = ref(false)
 const showMap = ref(false)
-
-const form = reactive({
-  nombre: '',
-  email: '',
-  telefono: '',
-})
-
-const submitForm = () => {
-  console.log('Datos del formulario:', form.nombre, form.email, form.telefono)
-  setTimeout(() => {
-    alert('¡Solicitud recibida! Te contactaremos pronto para coordinar tu primera visita.');
-    showForm.value = false;
-    form.nombre = ''
-    form.email = ''
-    form.telefono = ''
-  }, 500);
-}
 </script>
 
 <style scoped>
