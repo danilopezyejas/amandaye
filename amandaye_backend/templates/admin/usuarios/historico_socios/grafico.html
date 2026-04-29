@@ -1,0 +1,140 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+&rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+&rsaquo; Gráfica Histórica
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <h1>Evolución de Socios</h1>
+    
+    <div style="margin-bottom: 20px;">
+        <button id="downloadPdf" class="button" style="padding: 10px 15px; font-weight: bold; cursor: pointer;">Descargar PDF</button>
+        <a href="{% url opts|admin_urlname:'changelist' %}" class="button" style="padding: 10px 15px; margin-left: 10px; text-decoration: none;">Volver al Listado</a>
+    </div>
+
+    <div style="background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <canvas id="sociosChart" width="800" height="400"></canvas>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('sociosChart').getContext('2d');
+            
+            const fechas = {{ fechas_json|safe }};
+            const totales = {{ totales_json|safe }};
+            const familiares = {{ familiares_json|safe }};
+            const individuales = {{ individuales_json|safe }};
+            const personas = {{ personas_json|safe }};
+
+            const chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: fechas,
+                    datasets: [
+                        {
+                            label: 'Total Socios Titulares',
+                            data: totales,
+                            borderColor: '#1e489c',
+                            backgroundColor: 'rgba(30, 72, 156, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Total Personas',
+                            data: personas,
+                            borderColor: '#ed6c06',
+                            backgroundColor: 'rgba(237, 108, 6, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        },
+                        {
+                            label: 'Socios Familiares',
+                            data: familiares,
+                            borderColor: '#4bc0c0',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Socios Individuales',
+                            data: individuales,
+                            borderColor: '#9966ff',
+                            backgroundColor: 'transparent',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Evolución Histórica de Socios Amandayé',
+                            font: { size: 18 }
+                        },
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Lógica para descargar como PDF
+            document.getElementById('downloadPdf').addEventListener('click', function() {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('landscape', 'mm', 'a4');
+                
+                // Fondo blanco para el canvas (Chart.js por defecto tiene fondo transparente)
+                const canvas = document.getElementById('sociosChart');
+                
+                // Creamos un canvas temporal para dibujar el fondo blanco antes de exportar
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = canvas.width;
+                tempCanvas.height = canvas.height;
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                tempCtx.fillStyle = 'white';
+                tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+                tempCtx.drawImage(canvas, 0, 0);
+
+                const imgData = tempCanvas.toDataURL('image/jpeg', 1.0);
+                
+                // A4 landscape dimensions: 297 x 210 mm
+                // Margins: 10mm
+                const imgWidth = 277;
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                
+                pdf.setFontSize(18);
+                pdf.text("Reporte de Histórico de Socios - Amandayé", 14, 15);
+                pdf.addImage(imgData, 'JPEG', 10, 25, imgWidth, imgHeight);
+                
+                const date = new Date().toISOString().split('T')[0];
+                pdf.save(`historico_socios_${date}.pdf`);
+            });
+        });
+    </script>
+</div>
+{% endblock %}

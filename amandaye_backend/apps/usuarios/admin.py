@@ -361,5 +361,40 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
 
 
 #admin.site.register(Embarcaciones)
-#admin.site.register(Historico_socios)
 #admin.site.register(Socios_cambios)
+
+@admin.register(Historico_socios)
+class HistoricoSociosAdmin(admin.ModelAdmin):
+    list_display = ('fecha', 'total', 'familiar', 'individual', 'personas')
+    date_hierarchy = 'fecha'
+    ordering = ('-fecha',)
+    readonly_fields = ('fecha', 'total', 'familiar', 'individual', 'personas')
+    actions = ['graficar_seleccionados']
+
+    def has_add_permission(self, request):
+        return False  # Los registros son generados automáticamente por el sistema
+
+    @admin.action(description='Graficar registros seleccionados')
+    def graficar_seleccionados(self, request, queryset):
+        import json
+        from django.shortcuts import render
+        
+        # Ordenar queryset por fecha para que el gráfico tenga sentido cronológico
+        qs = queryset.order_by('fecha')
+        
+        fechas = [obj.fecha.strftime('%Y-%m-%d') for obj in qs]
+        totales = [obj.total for obj in qs]
+        familiares = [obj.familiar for obj in qs]
+        individuales = [obj.individual for obj in qs]
+        personas = [obj.personas or 0 for obj in qs]
+        
+        context = {
+            'fechas_json': json.dumps(fechas),
+            'totales_json': json.dumps(totales),
+            'familiares_json': json.dumps(familiares),
+            'individuales_json': json.dumps(individuales),
+            'personas_json': json.dumps(personas),
+            'opts': self.model._meta,
+        }
+        
+        return render(request, 'admin/usuarios/historico_socios/grafico.html', context)

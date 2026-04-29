@@ -43,6 +43,22 @@ def generar_cuotas_mensuales(periodo: str):
     except ValueError:
         return {"error": "El periodo debe tener formato YYYY-MM"}
 
+    # Generar snapshot historico del mes si no existe
+    from apps.usuarios.models import Historico_socios, Personas
+    if not Historico_socios.objects.filter(fecha=fecha_emision).exists():
+        total_activos = Socios.objects.filter(activo=1).count()
+        familiares = Socios.objects.filter(activo=1, tipo__icontains='familiar').count()
+        individuales = Socios.objects.filter(activo=1, tipo__icontains='individual').count()
+        personas_activas = Personas.objects.filter(numeroSocio__in=Socios.objects.filter(activo=1).values('numero')).count()
+        
+        Historico_socios.objects.create(
+            fecha=fecha_emision,
+            familiar=familiares,
+            individual=individuales,
+            total=total_activos,
+            personas=personas_activas
+        )
+
     for cuenta in cuentas:
         resultados["cuentas_procesadas"] += 1
         socio = cuenta.socio_titular
