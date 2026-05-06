@@ -6,6 +6,8 @@ from .models import (
     Personas,
     Socios,
     Socios_cambios,
+    AprobacionProfesor,
+    AvalComisionDirectiva,
 )
 
 class HistorialValoresMixin:
@@ -52,12 +54,50 @@ class HistorialValoresMixin:
 
         return change_message
 
+class AprobacionProfesorInline(admin.TabularInline):
+    model = AprobacionProfesor
+    extra = 0
+    can_delete = False
+    exclude = ('numero_socio_momento', 'registrado_por')
+    readonly_fields = ('created_at',)
+
+class AvalComisionDirectivaInline(admin.TabularInline):
+    model = AvalComisionDirectiva
+    extra = 0
+    # Campos visibles en el inline
+    fields = ('fecha_aval', 'observaciones', 'activo', 'motivo_revocacion', 'usuario_cd', 'fecha_revocacion', 'usuario_revocacion')
+    # Los campos de auditoría se llenan automáticamente — solo lectura
+    readonly_fields = ('usuario_cd', 'fecha_revocacion', 'usuario_revocacion')
+    verbose_name = 'Aval de Comisión Directiva'
+    verbose_name_plural = 'Avales de Comisión Directiva'
+
+    def get_readonly_fields(self, request, obj=None):
+        ro = list(self.readonly_fields)
+        # Si no tiene permiso de revocar, no puede editar activo ni el motivo
+        if not request.user.has_perm('usuarios.puede_revocar_aval'):
+            ro.extend(['activo', 'motivo_revocacion'])
+        return ro
+
+class EstadoHabilitacionFilter(admin.SimpleListFilter):
+    title = 'estado de habilitación'
+    parameter_name = 'estado_habilitacion'
+
+    def lookups(self, request, model_admin):
+        return Personas.ESTADO_HABILITACION
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(estado_habilitacion=self.value())
+        return queryset
+
 @admin.register(Personas)
 class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
-    readonly_fields = ("enlace_al_titular", "edad_calculada")
+    readonly_fields = ("enlace_al_titular", "edad_calculada", "estado_habilitacion", "fecha_ultimo_calculo_habilitacion", "diagnostico_habilitacion")
+    inlines = [AprobacionProfesorInline, AvalComisionDirectivaInline]
     fields = (
         "Cedula",
         "numeroSocio",
+        "enlace_al_titular",
         "PrimerNombre",
         "SegundoNombre",
         "PrimerApellido",
@@ -71,10 +111,107 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
         "relacionTitular",
         "salud",
         "llave",
-        "enlace_al_titular"
+        "estado_habilitacion",
+        "diagnostico_habilitacion",
+        "fecha_ultimo_calculo_habilitacion"
     )
-    list_display = ("nro_socio", "nombre_completo", "cedula_display")
+    list_display = ("nro_socio", "nombre_completo", "cedula_display", "estado_habilitacion_colorido")
+    list_filter = (EstadoHabilitacionFilter,)
     search_fields = ("Cedula", "PrimerNombre", "PrimerApellido", "SegundoApellido", "numeroSocio")
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if isinstance(instance, AvalComisionDirectiva):
+                if not getattr(instance, 'pk', None):
+                    instance.usuario_cd = request.user
+            elif isinstance(instance, AprobacionProfesor):
+                if not getattr(instance, 'pk', None):
+                    instance.registrado_por = request.user
+            instance.save()
+        formset.save_m2m()
+
+    @admin.display(description="Diagnóstico de habilitación")
+    def diagnostico_habilitacion(self, obj):
+        import datetime
+        from django.utils.html import format_html, mark_safe
+        from apps.usuarios.models import Socios
+
+        if obj.estado_habilitacion != 'NO_HABILITADO':
+            return "-"
+
+        hoy = datetime.date.today()
+        socio = Socios.objects.filter(numero=obj.numeroSocio).select_related('cuenta_corriente').first()
+
+        faltantes = []
+
+        if not socio:
+            return format_html(
+                '<span style="color:#c0392b;">⚠ No tiene un socio registrado con el número {}.</span>',
+                obj.numeroSocio
+            )
+
+        # cond_a: socio activo (Alta)
+        if socio.activo != 1:
+            estado_label = dict(Socios.ACTIVO_CHOICES).get(socio.activo, socio.activo)
+            faltantes.append(f'El socio no está en ALTA (estado actual: <b>{estado_label}</b>)')
+
+        # cond_b: no es TEMPORADA
+        if socio.tipo_cuota == 'TEMPORADA':
+            faltantes.append('El tipo de cuota es <b>Temporada</b> (no otorga habilitación permanente)')
+
+        # cond_c: mayor de edad
+        if obj.FechaNacimiento:
+            edad = hoy.year - obj.FechaNacimiento.year - (
+                (hoy.month, hoy.day) < (obj.FechaNacimiento.month, obj.FechaNacimiento.day)
+            )
+            if edad < 18:
+                faltantes.append(f'Es menor de edad (<b>{edad} años</b>; se requieren 18)')
+        else:
+            faltantes.append('No tiene fecha de nacimiento registrada')
+
+        # cond_d: antigüedad >= 365 días
+        if socio.fechaAprobacion:
+            dias = (hoy - socio.fechaAprobacion).days
+            if dias < 365:
+                faltantes.append(f'Antigüedad insuficiente (<b>{dias} días</b>; se requieren 365)')
+        else:
+            faltantes.append('No tiene fecha de aprobación como socio')
+
+        # cond_e: aprobación de profesor post-aprobación
+        tiene_aprobacion = False
+        if socio.fechaAprobacion:
+            for ap in obj.aprobaciones_profesor.all():
+                if ap.fecha >= socio.fechaAprobacion and ap.numero_socio_momento == socio.numero:
+                    tiene_aprobacion = True
+                    break
+        if not tiene_aprobacion:
+            faltantes.append('Falta <b>aprobación de profesor</b> posterior a la fecha de aprobación como socio')
+
+        # cond_f: aval activo de CD
+        if not any(av.activo for av in obj.avales_cd.all()):
+            faltantes.append('Falta <b>aval activo de Comisión Directiva</b>')
+
+        if not faltantes:
+            return mark_safe('<span style="color: green;">✔ Cumple todas las condiciones — recalcular para actualizar estado.</span>')
+
+        items = ''.join(f'<li style="margin-bottom:4px;">❌ {f}</li>' for f in faltantes)
+        return format_html(
+            '<ul style="margin:0; padding-left:18px; color:#c0392b;">{}</ul>',
+            mark_safe(items)
+        )
+
+    @admin.display(description="Estado Habilitación", ordering="estado_habilitacion")
+    def estado_habilitacion_colorido(self, obj):
+        from django.utils.html import format_html
+        colores = {
+            'HABILITADO': 'green',
+            'SUSPENDIDO': 'orange',
+            'REVOCADO': 'red',
+            'NO_HABILITADO': 'gray'
+        }
+        color = colores.get(obj.estado_habilitacion, 'gray')
+        return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_estado_habilitacion_display())
 
     @admin.display(description="Socio Titular")
     def enlace_al_titular(self, obj):
@@ -160,7 +297,7 @@ class EstadoActivoFilter(admin.SimpleListFilter):
 
 @admin.register(Socios)
 class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
-    list_display = ("numero", "cedula", "nombre_completo_socio", "tipo", "estado_activo", "tiene_cuenta", "fechaSolicitud", "fechaAprobacion", "fechaAlta")
+    list_display = ("numero", "cedula", "nombre_completo_socio", "tipo_socio", "tipo_cuota", "estado_activo", "tiene_cuenta", "fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
     readonly_fields = ("fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
 
     def get_actions(self, request):
@@ -245,51 +382,67 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
             for error in errores:
                 self.message_user(request, error, level=messages.ERROR)
     search_fields = ("numero", "cedulaTitular")
-    list_filter = (EstadoActivoFilter, "tipo")
+    list_filter = (EstadoActivoFilter, "tipo_socio", "tipo_cuota")
 
     def save_model(self, request, obj, form, change):
-        if change and 'activo' in form.changed_data:
-            viejo_activo = form.initial.get('activo')
-            nuevo_activo = form.cleaned_data.get('activo')
-            from django.contrib import messages
+        from django.contrib import messages
 
-            if viejo_activo == 2 and nuevo_activo == 1:
-                obj.activo = viejo_activo
-                from apps.usuarios.services.socios import aprobar_socio
-                try:
-                    aprobar_socio(obj)
-                    self.message_user(request, "Socio aprobado y Cuenta Corriente generada.", level=messages.SUCCESS)
-                except Exception as e:
-                    self.message_user(request, f"Error al aprobar: {str(e)}", level=messages.ERROR)
-                return
+        if change:
+            try:
+                db_obj = Socios.objects.get(pk=obj.pk)
+                viejo_activo = db_obj.activo
+            except Socios.DoesNotExist:
+                viejo_activo = None
 
-            elif viejo_activo == 2 and nuevo_activo == 3:
-                obj.activo = viejo_activo
-                from apps.usuarios.services.socios import rechazar_socio
-                try:
-                    rechazar_socio(obj, motivo="Rechazo manual desde formulario")
-                    self.message_user(request, "Solicitud rechazada correctamente.", level=messages.SUCCESS)
-                except Exception as e:
-                    self.message_user(request, f"Error al rechazar: {str(e)}", level=messages.ERROR)
-                return
+            nuevo_activo = obj.activo
 
-            elif viejo_activo in [1, 2] and nuevo_activo == 0:
-                obj.activo = viejo_activo
-                from apps.usuarios.services.socios import dar_baja_socio
-                try:
-                    dar_baja_socio(obj, motivo="Baja manual desde selector de formulario")
-                    self.message_user(request, "Socio dado de baja correctamente.", level=messages.SUCCESS)
-                except Exception as e:
-                    self.message_user(request, f"Error dando de baja: {str(e)}", level=messages.ERROR)
-                return
+            if viejo_activo != nuevo_activo:
+
+                # PENDIENTE → ALTA: aprobación completa (crea CC y cargos)
+                if viejo_activo == 2 and nuevo_activo == 1:
+                    from apps.usuarios.services.socios import aprobar_socio
+                    try:
+                        aprobar_socio(db_obj)
+                        self.message_user(request, "Socio aprobado y Cuenta Corriente generada.", level=messages.SUCCESS)
+                    except Exception as e:
+                        self.message_user(request, f"Error al aprobar: {str(e)}", level=messages.ERROR)
+                    return
+
+                # BAJA → ALTA: reactivación (reabre CC existente)
+                elif viejo_activo == 0 and nuevo_activo == 1:
+                    from apps.usuarios.services.socios import reactivar_socio
+                    try:
+                        reactivar_socio(db_obj, motivo="Reactivación manual desde formulario")
+                        self.message_user(request, "Socio reactivado correctamente.", level=messages.SUCCESS)
+                    except Exception as e:
+                        self.message_user(request, f"Error al reactivar: {str(e)}", level=messages.ERROR)
+                    return
+
+                # PENDIENTE → RECHAZADO
+                elif viejo_activo == 2 and nuevo_activo == 3:
+                    from apps.usuarios.services.socios import rechazar_socio
+                    try:
+                        rechazar_socio(db_obj, motivo="Rechazo manual desde formulario")
+                        self.message_user(request, "Solicitud rechazada correctamente.", level=messages.SUCCESS)
+                    except Exception as e:
+                        self.message_user(request, f"Error al rechazar: {str(e)}", level=messages.ERROR)
+                    return
+
+                # ALTA/PENDIENTE → BAJA
+                elif viejo_activo in [1, 2] and nuevo_activo == 0:
+                    from apps.usuarios.services.socios import dar_baja_socio
+                    try:
+                        dar_baja_socio(db_obj, motivo="Baja manual desde selector de formulario")
+                        self.message_user(request, "Socio dado de baja correctamente.", level=messages.SUCCESS)
+                    except Exception as e:
+                        self.message_user(request, f"Error dando de baja: {str(e)}", level=messages.ERROR)
+                    return
 
         super().save_model(request, obj, form, change)
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
         from django import forms
-        if db_field.name == 'tipo':
-            kwargs['widget'] = forms.TextInput(attrs={'size': '30'})
-        elif db_field.name == 'comentarios':
+        if db_field.name == 'comentarios':
             kwargs['widget'] = forms.Textarea(attrs={'rows': 4, 'cols': 60})
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 

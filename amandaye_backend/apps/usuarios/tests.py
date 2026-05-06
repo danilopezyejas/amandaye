@@ -7,6 +7,7 @@ from apps.cobranzas.models import ConceptoCobro, CuentaCorriente, Cargo, Pago, A
 from apps.usuarios.services.socios import crear_solicitud_socio, aprobar_socio, rechazar_socio, dar_baja_socio
 from apps.cobranzas.services.pagos import aplicar_pago, revertir_aplicacion, registrar_pago
 from apps.cobranzas.services.cuentas import obtener_estado_cuenta
+from apps.cobranzas.services.cargos import crear_cargo
 
 
 # ---------------------------------------------------------------------------
@@ -18,7 +19,7 @@ TITULAR_VALIDO = {
     "PrimerNombre": "Juan",
     "PrimerApellido": "Perez",
     "FechaNacimiento": "1990-01-15",
-    "Telefono": "099123456",
+    "Celular": "099123456",
     "Direccion": "Calle Falsa 123",
 }
 
@@ -333,3 +334,166 @@ class CobranzasTest(SetUpConceptosMixin, TestCase):
         with self.assertRaises(ValidationError) as cm:
             app.clean()
         self.assertIn("misma cuenta", str(cm.exception))
+
+
+# ---------------------------------------------------------------------------
+# Tests: Habilitaciones y Nuevos Tipos de Cuota
+# ---------------------------------------------------------------------------
+from django.contrib.auth.models import User
+from apps.usuarios.models import AprobacionProfesor, AvalComisionDirectiva
+from apps.cobranzas.services.cuotas import generar_cuotas_mensuales
+from apps.usuarios.services.habilitacion import recalcular_habilitacion_persona
+
+class HabilitacionesYCuotasTest(SetUpConceptosMixin, TestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.user_cd = User.objects.create_user(username='cd_user', password='123')
+        ConceptoCobro.objects.create(codigo="CUOTA_TEMPORADA", nombre="Cuota Temporada", importe_por_defecto=Decimal('1000.00'))
+
+    def _setup_socio_habilitable(self, cedula="10101010"):
+        socio = crear_solicitud_socio(titular(
+            Cedula=cedula,
+            FechaNacimiento=str(datetime.date.today() - datetime.timedelta(days=365 * 25))
+        ))
+        socio.tipo_cuota = 'ANUAL'
+        socio.save()
+        socio = aprobar_socio(socio)
+        
+        # Set antiguedad > 1 year
+        socio.fechaAprobacion = datetime.date.today() - datetime.timedelta(days=366)
+        socio.save()
+        
+        persona = Personas.objects.get(Cedula=cedula)
+        
+        # Aprobacion profe
+        AprobacionProfesor.objects.create(
+            persona=persona,
+            numero_socio_momento=socio.numero,
+            nombre_profesor='Profe Test',
+            fecha=socio.fechaAprobacion + datetime.timedelta(days=1)
+        )
+        
+        # Aval CD
+        AvalComisionDirectiva.objects.create(
+            persona=persona,
+            usuario_cd=self.user_cd,
+            fecha_aval=datetime.date.today()
+        )
+        
+        # Explicit recalculation with fresh db object
+        persona = Personas.objects.get(Cedula=cedula)
+        recalcular_habilitacion_persona(persona)
+        persona.refresh_from_db()
+        
+        return socio, persona
+
+    def test_24_temporada_no_habilitado(self):
+        socio, persona = self._setup_socio_habilitable("10101010")
+        self.assertEqual(persona.estado_habilitacion, 'HABILITADO')
+        
+        socio.tipo_cuota = 'TEMPORADA'
+        socio.save()
+        recalcular_habilitacion_persona(persona)
+        persona.refresh_from_db()
+        
+        self.assertEqual(persona.estado_habilitacion, 'NO_HABILITADO')
+
+    def test_25_menor_de_edad_no_habilitado(self):
+        socio, persona = self._setup_socio_habilitable("10101011")
+        persona.FechaNacimiento = datetime.date.today() - datetime.timedelta(days=365 * 17)
+        persona.save()
+        recalcular_habilitacion_persona(persona)
+        persona.refresh_from_db()
+        
+        self.assertEqual(persona.estado_habilitacion, 'NO_HABILITADO')
+
+    def test_26_antiguedad_menor_365_dias_no_habilitado(self):
+        socio, persona = self._setup_socio_habilitable("10101012")
+        socio.fechaAprobacion = datetime.date.today() - datetime.timedelta(days=300)
+        socio.save()
+        recalcular_habilitacion_persona(persona)
+        persona.refresh_from_db()
+        
+        self.assertEqual(persona.estado_habilitacion, 'NO_HABILITADO')
+
+    def test_27_sin_aprobacion_profesor_post_alta(self):
+        socio, persona = self._setup_socio_habilitable("10101013")
+        persona.aprobaciones_profesor.all().delete()
+        recalcular_habilitacion_persona(persona)
+        persona.refresh_from_db()
+        self.assertEqual(persona.estado_habilitacion, 'NO_HABILITADO')
+
+    def test_28_sin_aval_cd_activo(self):
+        socio, persona = self._setup_socio_habilitable("10101014")
+        aval = persona.avales_cd.first()
+        aval.revocar(self.user_cd, "Test")
+        persona.refresh_from_db()
+        self.assertEqual(persona.estado_habilitacion, 'NO_HABILITADO')
+
+    def test_29_3_cargos_pendientes_suspendido(self):
+        socio, persona = self._setup_socio_habilitable("10101015")
+        
+        hoy = datetime.date.today()
+        d = hoy
+        concepto = ConceptoCobro.objects.get(codigo="CUOTA_INDIVIDUAL")
+        for _ in range(3):
+            crear_cargo(socio.cuenta_corriente, concepto, d.strftime('%Y-%m'), d, d, concepto.importe_por_defecto)
+            d = d.replace(day=1) - datetime.timedelta(days=1)
+            
+        recalcular_habilitacion_persona(persona)
+        persona.refresh_from_db()
+        self.assertEqual(persona.estado_habilitacion, 'SUSPENDIDO')
+
+    def test_30_suspendido_que_paga_se_rehabilita(self):
+        socio, persona = self._setup_socio_habilitable("10101016")
+        
+        hoy = datetime.date.today()
+        d = hoy
+        concepto = ConceptoCobro.objects.get(codigo="CUOTA_INDIVIDUAL")
+        for _ in range(3):
+            crear_cargo(socio.cuenta_corriente, concepto, d.strftime('%Y-%m'), d, d, concepto.importe_por_defecto)
+            d = d.replace(day=1) - datetime.timedelta(days=1)
+            
+        recalcular_habilitacion_persona(persona)
+        persona.refresh_from_db()
+        self.assertEqual(persona.estado_habilitacion, 'SUSPENDIDO')
+        
+        cargo = socio.cuenta_corriente.cargos.filter(estado=Cargo.Estado.PENDIENTE).first()
+        pago = registrar_pago(socio.cuenta_corriente, hoy, cargo.importe, 'EFECTIVO')
+        aplicar_pago(pago, cargo, cargo.importe)
+        
+        persona.refresh_from_db()
+        self.assertEqual(persona.estado_habilitacion, 'HABILITADO')
+
+    def test_31_revocado_no_cambia_sin_nuevo_aval(self):
+        socio, persona = self._setup_socio_habilitable("10101017")
+        persona.estado_habilitacion = 'REVOCADO'
+        persona.save(update_fields=['estado_habilitacion'])
+        
+        persona.save()
+        self.assertEqual(persona.estado_habilitacion, 'REVOCADO')
+
+    def test_32_cuota_beca_aplica_50_por_ciento(self):
+        socio, persona = self._setup_socio_habilitable("10101018")
+        socio.tipo_cuota = 'BECA'
+        socio.tipo_socio = 'INDIVIDUAL'
+        socio.save()
+        
+        periodo = (datetime.date.today() + datetime.timedelta(days=365)).strftime('%Y-%m')
+        generar_cuotas_mensuales(periodo)
+        
+        cargo = Cargo.objects.filter(cuenta=socio.cuenta_corriente, periodo=periodo).first()
+        self.assertEqual(cargo.importe, Decimal('750.00'))
+
+    def test_33_exonerado_no_genera_cargo(self):
+        socio, persona = self._setup_socio_habilitable("10101019")
+        socio.tipo_cuota = 'EXONERADO'
+        socio.save()
+        
+        periodo = (datetime.date.today() + datetime.timedelta(days=365)).strftime('%Y-%m')
+        generar_cuotas_mensuales(periodo)
+        
+        exists = Cargo.objects.filter(cuenta=socio.cuenta_corriente, periodo=periodo).exists()
+        self.assertFalse(exists)
+

@@ -25,7 +25,8 @@ class Command(BaseCommand):
                     'puede_aprobar_socio',
                     'puede_rechazar_socio',
                     'puede_dar_baja_socio',
-                    'puede_ver_resumen_cobranzas'
+                    'puede_ver_resumen_cobranzas',
+                    'puede_revocar_aval'
                 ]
             },
             

@@ -49,6 +49,15 @@ def aplicar_pago(pago: Pago, cargo: Cargo, importe_aplicar: Decimal, usuario: Us
         cargo.estado = Cargo.Estado.PARCIAL
     cargo.save()
     
+    # Disparar recálculo de habilitación para el titular
+    from apps.usuarios.models import Personas
+    from apps.usuarios.services.habilitacion import recalcular_habilitacion_persona
+    
+    socio_titular = pago.cuenta.socio_titular
+    persona_titular = Personas.objects.filter(Cedula=socio_titular.cedulaTitular).first()
+    if persona_titular:
+        recalcular_habilitacion_persona(persona_titular)
+        
     return aplicacion
 
 @transaction.atomic

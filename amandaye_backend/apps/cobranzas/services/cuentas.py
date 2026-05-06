@@ -16,7 +16,7 @@ def crear_cuenta_corriente_para_titular(socio: Socios) -> CuentaCorriente:
     # Determinar tipo
     tipo_cuenta = (
         CuentaCorriente.TipoCuenta.FAMILIAR 
-        if socio.tipo and 'familiar' in socio.tipo.lower()
+        if socio.tipo_socio == 'FAMILIAR'
         else CuentaCorriente.TipoCuenta.INDIVIDUAL
     )
     

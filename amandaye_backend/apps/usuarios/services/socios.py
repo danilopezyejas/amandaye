@@ -168,7 +168,8 @@ def crear_solicitud_socio(datos_titular: dict, datos_familiares: list = None) ->
         activo=2,  # PENDIENTE
         fechaSolicitud=datetime.date.today(),
         fechaAlta=None,  # Se asignará al aprobar
-        tipo=tipo_socio,
+        tipo_socio=tipo_socio,
+        tipo_cuota="ANUAL", # Por defecto, la CD luego lo puede cambiar si es beca/exonerado/temporada
         cedulaTitular=datos_titular["Cedula"],
     )
 
@@ -241,21 +242,29 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socio
         )
 
         # --- Primera cuota mensual ---
-        codigo_cuota = (
-            "CUOTA_FAMILIAR"
-            if socio.tipo and 'familiar' in socio.tipo.lower()
-            else "CUOTA_INDIVIDUAL"
-        )
-        concepto_cuota = _obtener_concepto(codigo_cuota)
-        crear_cargo(
-            cuenta=cuenta,
-            concepto=concepto_cuota,
-            periodo=periodo,
-            fecha_emision=hoy,
-            fecha_vencimiento=vence,
-            importe=concepto_cuota.importe_por_defecto,
-            observaciones=f"Cuota mensual inicial ({socio.tipo})",
-        )
+        if socio.tipo_cuota == 'EXONERADO':
+            pass
+        else:
+            if socio.tipo_cuota == 'TEMPORADA':
+                codigo_cuota = "CUOTA_TEMPORADA"
+            else:
+                codigo_cuota = "CUOTA_FAMILIAR" if socio.tipo_socio == 'FAMILIAR' else "CUOTA_INDIVIDUAL"
+            
+            concepto_cuota = _obtener_concepto(codigo_cuota)
+            importe = concepto_cuota.importe_por_defecto
+            
+            if socio.tipo_cuota == 'BECA':
+                importe = round(importe * Decimal('0.50'), 2)
+            
+            crear_cargo(
+                cuenta=cuenta,
+                concepto=concepto_cuota,
+                periodo=periodo,
+                fecha_emision=hoy,
+                fecha_vencimiento=vence,
+                importe=importe,
+                observaciones=f"Cuota mensual inicial ({socio.tipo_socio} - {socio.tipo_cuota})",
+            )
 
     _registrar_cambio(
         "Alta",
@@ -306,16 +315,50 @@ def dar_baja_socio(socio: Socios, motivo: str = "Baja Administrativa") -> Socios
 
     socio.activo = 0
     socio.fechaBaja = datetime.date.today()
-    socio.save()
+    socio.save(update_fields=['activo', 'fechaBaja'])
 
-    # Cerrar la cuenta siempre
+    # Cerrar la cuenta — error aquí NO revierte el cambio de estado del socio
+    from django.db import transaction as db_transaction
     try:
-        cc = socio.cuenta_corriente
-        cc.estado = CuentaCorriente.Estado.CERRADA
-        cc.fecha_cierre = datetime.date.today()
-        cc.save()
-    except CuentaCorriente.DoesNotExist:
-        pass  # Socio sin cuenta (pendiente que nunca fue aprobado)
+        with db_transaction.atomic():
+            cc = socio.cuenta_corriente
+            cc.estado = CuentaCorriente.Estado.CERRADA
+            cc.fecha_cierre = datetime.date.today()
+            cc.save()
+    except Exception:
+        pass  # Socio sin cuenta o error al cerrar CC (la baja ya fue guardada)
 
     _registrar_cambio("Baja", motivo)
+    return socio
+
+
+# ---------------------------------------------------------------------------
+# Servicio: Reactivar socio (BAJA → ALTA)
+# ---------------------------------------------------------------------------
+
+@transaction.atomic
+def reactivar_socio(socio: Socios, motivo: str = "Reactivación administrativa") -> Socios:
+    """
+    Reactiva un socio que estaba en BAJA.
+    - Actualiza fechaAlta con la fecha de hoy
+    - Reactiva (reabre) la CuentaCorriente si existe
+    """
+    if not socio.esta_de_baja:
+        raise ValidationError("Solo se puede reactivar un socio que esté de BAJA.")
+
+    socio.activo = 1
+    socio.fechaAlta = datetime.date.today()
+    socio.save(update_fields=['activo', 'fechaAlta'])
+
+    # Reactivar la cuenta corriente si existe
+    try:
+        cc = socio.cuenta_corriente
+        cc.estado = CuentaCorriente.Estado.ACTIVA
+        cc.fecha_cierre = None
+        cc.save()
+    except CuentaCorriente.DoesNotExist:
+        # Si no tiene cuenta, crear una nueva
+        crear_cuenta_corriente_para_titular(socio)
+
+    _registrar_cambio("Alta", f"[REACTIVACIÓN] Socio {socio.numero}: {motivo}")
     return socio

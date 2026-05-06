@@ -1,4 +1,5 @@
 from django.db import models # type: ignore
+from django.contrib.auth.models import User
 
 class Embarcaciones(models.Model):
     numero = models.IntegerField(primary_key=True)
@@ -44,6 +45,28 @@ class Personas(models.Model):
     salud = models.CharField(max_length=20, null=True, blank=True, verbose_name="Salud")
     llave = models.IntegerField(null=True, blank=True, verbose_name="Llave")
 
+    ESTADO_HABILITACION = [
+        ('NO_HABILITADO', 'No habilitado'),
+        ('HABILITADO', 'Habilitado'),
+        ('SUSPENDIDO', 'Suspendido'),
+        ('REVOCADO', 'Revocado'),
+    ]
+
+    estado_habilitacion = models.CharField(
+        max_length=20,
+        choices=ESTADO_HABILITACION,
+        default='NO_HABILITADO',
+        editable=False,
+        verbose_name='Estado de habilitación'
+    )
+
+    fecha_ultimo_calculo_habilitacion = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        verbose_name='Último cálculo de habilitación'
+    )
+
     class Meta:
         db_table = 'personas'
         verbose_name_plural = 'Personas'
@@ -54,6 +77,86 @@ class Personas(models.Model):
     def nombre_completo(self):
         return f"{self.PrimerNombre} {self.SegundoNombre or ''} {self.PrimerApellido} {self.SegundoApellido or ''}".strip()
 
+
+class AprobacionProfesor(models.Model):
+    persona = models.ForeignKey(
+        Personas,
+        on_delete=models.CASCADE,
+        related_name='aprobaciones_profesor'
+    )
+    numero_socio_momento = models.IntegerField(
+        verbose_name='Número de socio al momento de la aprobación',
+        null=True, blank=True
+    )
+    nombre_profesor = models.CharField(max_length=100)
+    fecha = models.DateField()
+    observaciones = models.TextField(null=True, blank=True)
+    registrado_por = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Aprobación de profesor'
+        verbose_name_plural = 'Aprobaciones de profesor'
+        ordering = ['-fecha']
+
+    def save(self, *args, **kwargs):
+        if not self.numero_socio_momento and self.persona_id:
+            self.numero_socio_momento = self.persona.numeroSocio
+        super().save(*args, **kwargs)
+        from apps.usuarios.services.habilitacion import recalcular_habilitacion_persona
+        recalcular_habilitacion_persona(self.persona)
+
+
+class AvalComisionDirectiva(models.Model):
+    persona = models.ForeignKey(
+        Personas,
+        on_delete=models.CASCADE,
+        related_name='avales_cd'
+    )
+    usuario_cd = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name='avales_otorgados'
+    )
+    fecha_aval = models.DateField()
+    observaciones = models.TextField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
+    fecha_revocacion = models.DateTimeField(null=True, blank=True)
+    motivo_revocacion = models.TextField(null=True, blank=True)
+    usuario_revocacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='avales_revocados'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Aval de Comisión Directiva'
+        verbose_name_plural = 'Avales de Comisión Directiva'
+        ordering = ['-fecha_aval']
+        permissions = [
+            ('puede_revocar_aval', 'Puede revocar avales de CD'),
+        ]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        from apps.usuarios.services.habilitacion import recalcular_habilitacion_persona
+        recalcular_habilitacion_persona(self.persona)
+
+    def revocar(self, usuario, motivo):
+        from django.utils import timezone
+        self.activo = False
+        self.fecha_revocacion = timezone.now()
+        self.motivo_revocacion = motivo
+        self.usuario_revocacion = usuario
+        self.save() # The save method above will trigger the recalculation
 
 
 class Socios(models.Model):
@@ -69,7 +172,23 @@ class Socios(models.Model):
     fechaAprobacion = models.DateField(null=True, blank=True, verbose_name="Fecha de aprobación")
     fechaAlta = models.DateField(null=True, blank=True, verbose_name="Fecha de alta")
     fechaBaja = models.DateField(null=True, blank=True, verbose_name="Fecha de baja")
-    tipo = models.TextField(verbose_name="Tipo de socio")
+    tipo_socio = models.CharField(
+        max_length=20,
+        choices=[('INDIVIDUAL', 'Individual'), ('FAMILIAR', 'Familiar')],
+        verbose_name='Tipo de socio',
+        default='INDIVIDUAL'
+    )
+    tipo_cuota = models.CharField(
+        max_length=20,
+        choices=[
+            ('ANUAL', 'Anual'),
+            ('TEMPORADA', 'Temporada'),
+            ('BECA', 'Beca'),
+            ('EXONERADO', 'Exonerado'),
+        ],
+        verbose_name='Tipo de cuota',
+        default='ANUAL'
+    )
     cedulaTitular = models.CharField(max_length=11, verbose_name="Cédula del titular")
     comentarios = models.CharField(max_length=40, null=True, blank=True, verbose_name="Comentarios")
     percha = models.IntegerField(null=True, blank=True, verbose_name="Percha")

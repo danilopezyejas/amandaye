@@ -47,8 +47,8 @@ def generar_cuotas_mensuales(periodo: str):
     from apps.usuarios.models import Historico_socios, Personas
     if not Historico_socios.objects.filter(fecha=fecha_emision).exists():
         total_activos = Socios.objects.filter(activo=1).count()
-        familiares = Socios.objects.filter(activo=1, tipo__icontains='familiar').count()
-        individuales = Socios.objects.filter(activo=1, tipo__icontains='individual').count()
+        familiares = Socios.objects.filter(activo=1, tipo_socio='FAMILIAR').count()
+        individuales = Socios.objects.filter(activo=1, tipo_socio='INDIVIDUAL').count()
         personas_activas = Personas.objects.filter(numeroSocio__in=Socios.objects.filter(activo=1).values('numero')).count()
         
         Historico_socios.objects.create(
@@ -63,17 +63,21 @@ def generar_cuotas_mensuales(periodo: str):
         resultados["cuentas_procesadas"] += 1
         socio = cuenta.socio_titular
         
-        # Determinar el concepto basandose en la clase de socio
-        tipo_socio = (socio.tipo or "").lower()
-        if 'temporada' in tipo_socio:
+        if socio.tipo_cuota == 'EXONERADO':
+            resultados["cuotas_omitidas"] += 1
+            continue
+
+        if socio.tipo_cuota == 'TEMPORADA':
             concepto = concepto_temporada
-        elif cuenta.tipo_cuenta == CuentaCorriente.TipoCuenta.FAMILIAR:
+        elif socio.tipo_socio == 'FAMILIAR':
             concepto = concepto_familiar
         else:
             concepto = concepto_individual
 
-        # Importe siempre desde importe_por_defecto
         importe = concepto.importe_por_defecto
+        
+        if socio.tipo_cuota == 'BECA':
+            importe = round(importe * Decimal('0.50'), 2)
             
         # Revisar si ya existe el cargo para no duplicar
         if Cargo.objects.filter(cuenta=cuenta, concepto=concepto, periodo=periodo).exists():
