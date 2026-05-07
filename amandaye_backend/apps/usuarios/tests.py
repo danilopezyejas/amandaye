@@ -362,6 +362,7 @@ class HabilitacionesYCuotasTest(SetUpConceptosMixin, TestCase):
         
         # Set antiguedad > 1 year
         socio.fechaAprobacion = datetime.date.today() - datetime.timedelta(days=366)
+        socio.fechaAlta = socio.fechaAprobacion
         socio.save()
         
         persona = Personas.objects.get(Cedula=cedula)
@@ -411,6 +412,7 @@ class HabilitacionesYCuotasTest(SetUpConceptosMixin, TestCase):
     def test_26_antiguedad_menor_365_dias_no_habilitado(self):
         socio, persona = self._setup_socio_habilitable("10101012")
         socio.fechaAprobacion = datetime.date.today() - datetime.timedelta(days=300)
+        socio.fechaAlta = socio.fechaAprobacion
         socio.save()
         recalcular_habilitacion_persona(persona)
         persona.refresh_from_db()

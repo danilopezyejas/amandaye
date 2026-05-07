@@ -170,23 +170,26 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
         else:
             faltantes.append('No tiene fecha de nacimiento registrada')
 
-        # cond_d: antigüedad >= 365 días
-        if socio.fechaAprobacion:
-            dias = (hoy - socio.fechaAprobacion).days
+        # La antigüedad y aprobaciones se calculan desde el inicio del PERIODO ACTUAL (fechaAlta)
+        fecha_base = socio.fechaAlta or socio.fechaAprobacion
+
+        # cond_d: antigüedad >= 365 días desde el alta actual
+        if fecha_base:
+            dias = (hoy - fecha_base).days
             if dias < 365:
-                faltantes.append(f'Antigüedad insuficiente (<b>{dias} días</b>; se requieren 365)')
+                faltantes.append(f'Antigüedad insuficiente (<b>{dias} días</b>; se requieren 365 desde el Alta)')
         else:
-            faltantes.append('No tiene fecha de aprobación como socio')
+            faltantes.append('No tiene fecha de alta registrada')
 
         # cond_e: aprobación de profesor post-aprobación
         tiene_aprobacion = False
-        if socio.fechaAprobacion:
+        if fecha_base:
             for ap in obj.aprobaciones_profesor.all():
-                if ap.fecha >= socio.fechaAprobacion and ap.numero_socio_momento == socio.numero:
+                if ap.fecha >= fecha_base and ap.numero_socio_momento == socio.numero:
                     tiene_aprobacion = True
                     break
         if not tiene_aprobacion:
-            faltantes.append('Falta <b>aprobación de profesor</b> posterior a la fecha de aprobación como socio')
+            faltantes.append('Falta <b>aprobación de profesor</b> posterior a la fecha de Alta actual')
 
         # cond_f: aval activo de CD
         if not any(av.activo for av in obj.avales_cd.all()):

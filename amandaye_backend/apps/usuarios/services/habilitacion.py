@@ -48,14 +48,16 @@ def _calcular_estado_individual(persona, socio, hoy) -> str:
     cond_b = socio.tipo_cuota != 'TEMPORADA'
     cond_c = _calcular_edad(persona.FechaNacimiento, hoy) >= 18
     
+    fecha_base = socio.fechaAlta or socio.fechaAprobacion
+
     cond_d = False
-    if socio.fechaAprobacion:
-        cond_d = (hoy - socio.fechaAprobacion).days >= 365
+    if fecha_base:
+        cond_d = (hoy - fecha_base).days >= 365
 
     cond_e = False
-    if socio.fechaAprobacion:
+    if fecha_base:
         for ap in persona.aprobaciones_profesor.all():
-            if ap.fecha >= socio.fechaAprobacion and ap.numero_socio_momento == socio.numero:
+            if ap.fecha >= fecha_base and ap.numero_socio_momento == socio.numero:
                 cond_e = True
                 break
 
