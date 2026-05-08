@@ -103,6 +103,9 @@ class AprobacionProfesor(models.Model):
         verbose_name_plural = 'Aprobaciones de profesor'
         ordering = ['-fecha']
 
+    def __str__(self):
+        return f"{self.nombre_profesor} ({self.fecha})"
+
     def save(self, *args, **kwargs):
         if not self.numero_socio_momento and self.persona_id:
             self.numero_socio_momento = self.persona.numeroSocio

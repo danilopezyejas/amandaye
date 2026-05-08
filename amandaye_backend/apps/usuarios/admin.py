@@ -57,9 +57,15 @@ class HistorialValoresMixin:
 class AprobacionProfesorInline(admin.TabularInline):
     model = AprobacionProfesor
     extra = 0
-    can_delete = False
+    can_delete = True
     exclude = ('numero_socio_momento', 'registrado_por')
     readonly_fields = ('created_at',)
+    
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        from django import forms
+        if db_field.name == 'observaciones':
+            kwargs['widget'] = forms.Textarea(attrs={'rows': 1, 'cols': 30, 'style': 'height: 2em;'})
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 class AvalComisionDirectivaInline(admin.TabularInline):
     model = AvalComisionDirectiva
@@ -78,6 +84,12 @@ class AvalComisionDirectivaInline(admin.TabularInline):
             ro.extend(['activo', 'motivo_revocacion'])
         return ro
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        from django import forms
+        if db_field.name in ['observaciones', 'motivo_revocacion']:
+            kwargs['widget'] = forms.Textarea(attrs={'rows': 1, 'cols': 30, 'style': 'height: 2em;'})
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
 class EstadoHabilitacionFilter(admin.SimpleListFilter):
     title = 'estado de habilitación'
     parameter_name = 'estado_habilitacion'
@@ -94,26 +106,29 @@ class EstadoHabilitacionFilter(admin.SimpleListFilter):
 class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
     readonly_fields = ("enlace_al_titular", "edad_calculada", "estado_habilitacion", "fecha_ultimo_calculo_habilitacion", "diagnostico_habilitacion")
     inlines = [AprobacionProfesorInline, AvalComisionDirectivaInline]
-    fields = (
-        "Cedula",
-        "numeroSocio",
-        "enlace_al_titular",
-        "PrimerNombre",
-        "SegundoNombre",
-        "PrimerApellido",
-        "SegundoApellido",
-        "FechaNacimiento",
-        "edad_calculada",
-        "Direccion",
-        "Telefono",
-        "Celular",
-        "Correo",
-        "relacionTitular",
-        "salud",
-        "llave",
-        "estado_habilitacion",
-        "diagnostico_habilitacion",
-        "fecha_ultimo_calculo_habilitacion"
+    
+    class Media:
+        css = {
+            'all': ('admin/css/custom_admin.css',)
+        }
+    fieldsets = (
+        ('Vínculos y Estado', {
+            'fields': ('enlace_al_titular', 'estado_habilitacion', 'diagnostico_habilitacion'),
+        }),
+        ('Datos Personales', {
+            'fields': (
+                'Cedula', 'numeroSocio', 'relacionTitular',
+                ('PrimerNombre', 'SegundoNombre'),
+                ('PrimerApellido', 'SegundoApellido'),
+                'FechaNacimiento', 'edad_calculada'
+            ),
+        }),
+        ('Contacto', {
+            'fields': ('Direccion', 'Telefono', 'Celular', 'Correo'),
+        }),
+        ('Otros Datos', {
+            'fields': ('salud', 'llave'),
+        }),
     )
     list_display = ("nro_socio", "nombre_completo", "cedula_display", "estado_habilitacion_colorido")
     list_filter = (EstadoHabilitacionFilter,)
@@ -216,33 +231,46 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
         color = colores.get(obj.estado_habilitacion, 'gray')
         return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_estado_habilitacion_display())
 
-    @admin.display(description="Socio Titular")
+    @admin.display(description="Vínculo con Socio/Titular")
     def enlace_al_titular(self, obj):
         from django.utils.html import format_html
         from django.urls import reverse
         
-        if not obj or not obj.Cedula:
-            return "Datos insuficientes."
+        if not obj or not obj.numeroSocio or obj.numeroSocio <= 0:
+            return format_html('<span style="color: #7f8c8d; font-style: italic;">Persona no vinculada a un socio activo.</span>')
 
         socio = Socios.objects.filter(numero=obj.numeroSocio).first()
         if not socio:
-            return "Número de socio no registrado/activo."
+            return format_html('<span style="color: #c0392b;">⚠️ No se encontró el Socio Nº {} en el sistema.</span>', obj.numeroSocio)
             
+        # Caso A: La persona actual ES el titular del socio
         if obj.Cedula == socio.cedulaTitular:
             url_socio = reverse('admin:usuarios_socios_change', args=[socio.numero])
             return format_html(
-                '<a href="{}" style="background-color: #ed6c06; color: white; padding: 8px 14px; border-radius: 6px; font-weight: bold; text-decoration: none; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #c95b04;">Ir a Ficha de Socio (Nº {})</a>',
+                '<div style="margin-bottom: 5px;">'
+                '<span style="display: block; margin-bottom: 5px; color: #2c3e50; font-weight: bold;">Usted es el TITULAR de esta membresía:</span>'
+                '<a href="{}" class="button" style="background: #e67e22; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; display: inline-block;">'
+                '💳 Ver Ficha de Socio (Nº {})'
+                '</a>'
+                '</div>',
                 url_socio, socio.numero
             )
             
+        # Caso B: La persona actual es un FAMILIAR, buscamos al titular
         persona_titular = Personas.objects.filter(Cedula=socio.cedulaTitular).first()
         if persona_titular:
-            url = reverse('admin:usuarios_personas_change', args=[persona_titular.Cedula])
+            url_titular = reverse('admin:usuarios_personas_change', args=[persona_titular.Cedula])
             return format_html(
-                '<a href="{}" style="background-color: #1e489c; color: white; padding: 8px 14px; border-radius: 6px; font-weight: bold; text-decoration: none; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #0f296d;">Ir a ficha del Titular ({} - C.I. {})</a>',
-                url, persona_titular.nombre_completo(), persona_titular.Cedula
+                '<div style="margin-bottom: 5px;">'
+                '<span style="display: block; margin-bottom: 5px; color: #2c3e50; font-weight: bold;">Usted es FAMILIAR del socio titular:</span>'
+                '<a href="{}" class="button" style="background: #2980b9; color: white; padding: 8px 15px; border-radius: 4px; text-decoration: none; display: inline-block;">'
+                '👤 Ver ficha del Titular ({} - C.I. {})'
+                '</a>'
+                '</div>',
+                url_titular, persona_titular.nombre_completo(), persona_titular.Cedula
             )
-        return "Titular externo o no encontrado en la base de datos."
+            
+        return format_html('<span style="color: #e67e22;">Socio Nº {} (Titular C.I. {} no encontrado en Personas)</span>', socio.numero, socio.cedulaTitular)
 
     @admin.display(description="Edad")
     def edad_calculada(self, obj):
@@ -301,7 +329,22 @@ class EstadoActivoFilter(admin.SimpleListFilter):
 @admin.register(Socios)
 class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
     list_display = ("numero", "cedula", "nombre_completo_socio", "tipo_socio", "tipo_cuota", "estado_activo", "tiene_cuenta", "fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
-    readonly_fields = ("fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
+    readonly_fields = ("enlace_a_persona", "fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
+    
+    fieldsets = (
+        ('Navegación Rápida', {
+            'fields': ('enlace_a_persona',),
+        }),
+        ('Información Básica', {
+            'fields': ('numero', 'cedulaTitular', 'activo', 'tipo_socio', 'tipo_cuota'),
+        }),
+        ('Fechas de Gestión', {
+            'fields': ('fechaSolicitud', 'fechaAprobacion', 'fechaAlta', 'fechaBaja'),
+        }),
+        ('Otros', {
+            'fields': ('percha', 'comentarios'),
+        }),
+    )
 
     def get_actions(self, request):
         actions = super().get_actions(request)
@@ -497,6 +540,23 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
             persona = Personas.objects.filter(Cedula=obj.cedulaTitular).first()
             obj._persona_cache = persona
         return obj._persona_cache
+
+    @admin.display(description="Ficha de Persona")
+    def enlace_a_persona(self, obj):
+        from django.urls import reverse
+        from django.utils.html import format_html
+        
+        # Obtenemos la persona titular
+        persona = self.get_persona(obj)
+        if persona:
+            url = reverse('admin:usuarios_personas_change', args=[persona.Cedula])
+            return format_html(
+                '<a href="{}" class="button" style="background: #34495e; color: white; padding: 5px 10px; border-radius: 4px; text-decoration: none;">'
+                '📂 Ver ficha de Persona'
+                '</a>',
+                url
+            )
+        return "-"
 
     @admin.display(description="Nombre Completo")
     def nombre_completo_socio(self, obj):

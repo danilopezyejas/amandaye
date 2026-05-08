@@ -1,0 +1,28 @@
+/* Estilos personalizados para el Admin de Amandayé */
+
+/* Agregar tooltip al icono de eliminar en inlines */
+.inline-group .delete a.inline-deletelink {
+    position: relative;
+}
+
+.inline-group .delete a.inline-deletelink:hover::after {
+    content: "Eliminar este registro";
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background: #333;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    z-index: 1000;
+    margin-bottom: 5px;
+}
+
+/* Ajuste fino para textareas pequeños */
+.inline-group td textarea {
+    min-height: 2em !important;
+    padding: 4px !important;
+    vertical-align: middle;
+}
