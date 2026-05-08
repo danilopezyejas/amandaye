@@ -229,7 +229,34 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
             'NO_HABILITADO': 'gray'
         }
         color = colores.get(obj.estado_habilitacion, 'gray')
-        return format_html('<span style="color: {}; font-weight: bold;">{}</span>', color, obj.get_estado_habilitacion_display())
+        
+        # Inyectamos el CSS del tooltip directamente aquí para asegurar que se cargue
+        # Esto es un respaldo por si el archivo .css externo tiene problemas de caché
+        css_inline = mark_safe("""
+        <style>
+            .inline-group td.delete { position: relative !important; }
+            .inline-group td.delete:hover::after {
+                content: "Eliminar este registro" !important;
+                position: absolute !important;
+                bottom: 100% !important;
+                right: 10px !important;
+                background: #c0392b !important;
+                color: #fff !important;
+                padding: 5px 10px !important;
+                border-radius: 4px !important;
+                font-size: 12px !important;
+                white-space: nowrap !important;
+                z-index: 99999 !important;
+                margin-bottom: 8px !important;
+                display: block !important;
+            }
+            .inline-group .delete a, .inline-group .delete label {
+                color: #e74c3c !important;
+                font-weight: bold !important;
+            }
+        </style>
+        """)
+        return format_html('{}{}<span style="color: {}; font-weight: bold;">{}</span>', css_inline, "", color, obj.get_estado_habilitacion_display())
 
     @admin.display(description="Vínculo con Socio/Titular")
     def enlace_al_titular(self, obj):
