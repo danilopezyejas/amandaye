@@ -76,6 +76,7 @@ class AvalComisionDirectivaInline(admin.TabularInline):
     readonly_fields = ('usuario_cd', 'fecha_revocacion', 'usuario_revocacion')
     verbose_name = 'Aval de Comisión Directiva'
     verbose_name_plural = 'Avales de Comisión Directiva'
+    can_delete = True
 
     def get_readonly_fields(self, request, obj=None):
         ro = list(self.readonly_fields)
@@ -233,8 +234,17 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
         # Inyectamos el CSS del tooltip directamente aquí para asegurar que se cargue
         # Solo lo aplicamos a td.delete para evitar duplicados si hay un link adentro
         css_inline = mark_safe("""
-        <style>
-            .inline-group td.delete { position: relative !important; }
+            .inline-group td.delete { 
+                position: relative !important; 
+                text-align: center !important;
+                vertical-align: middle !important;
+            }
+            .inline-group td.delete input[type="checkbox"] {
+                accent-color: #e74c3c !important;
+                transform: scale(1.5) !important;
+                cursor: pointer !important;
+                margin: 0 !important;
+            }
             .inline-group td.delete:hover::after {
                 content: "Eliminar este registro" !important;
                 position: absolute !important;
@@ -265,6 +275,12 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
             .inline-group .delete a, .inline-group .delete label {
                 color: #e74c3c !important;
                 font-weight: bold !important;
+            }
+            /* Estilo para la cruz si es un link */
+            .inline-group .delete a.inline-deletelink {
+                color: #e74c3c !important;
+                font-size: 20px !important;
+                text-decoration: none !important;
             }
         </style>
         """)
