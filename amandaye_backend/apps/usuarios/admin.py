@@ -231,7 +231,7 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
         color = colores.get(obj.estado_habilitacion, 'gray')
         
         # Inyectamos el CSS del tooltip directamente aquí para asegurar que se cargue
-        # Esto es un respaldo por si el archivo .css externo tiene problemas de caché
+        # Solo lo aplicamos a td.delete para evitar duplicados si hay un link adentro
         css_inline = mark_safe("""
         <style>
             .inline-group td.delete { position: relative !important; }
@@ -248,6 +248,18 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
                 white-space: nowrap !important;
                 z-index: 99999 !important;
                 margin-bottom: 8px !important;
+                display: block !important;
+            }
+            /* Triángulo */
+            .inline-group td.delete:hover::before {
+                content: "" !important;
+                position: absolute !important;
+                bottom: 100% !important;
+                right: 25px !important;
+                border: 6px solid transparent !important;
+                border-top-color: #c0392b !important;
+                margin-bottom: -4px !important;
+                z-index: 99999 !important;
                 display: block !important;
             }
             .inline-group .delete a, .inline-group .delete label {
