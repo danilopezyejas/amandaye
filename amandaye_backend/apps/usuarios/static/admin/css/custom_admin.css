@@ -1,23 +1,51 @@
 /* Estilos personalizados para el Admin de Amandayé */
 
-/* Agregar tooltip al icono de eliminar en inlines */
-.inline-group .delete a.inline-deletelink {
+/* Tooltip y color para el botón de eliminar en inlines */
+.inline-group .delete, 
+.inline-group .delete a,
+.inline-group .delete .inline-deletelink {
     position: relative;
 }
 
-.inline-group .delete a.inline-deletelink:hover::after {
+/* Forzar que el icono/texto de eliminar sea rojo */
+.inline-group .delete a,
+.inline-group .delete .inline-deletelink,
+.inline-group .delete label {
+    color: #e74c3c !important; /* Rojo */
+    font-weight: bold;
+}
+
+/* Tooltip al pasar el mouse sobre la celda de eliminar o el link */
+.inline-group td.delete:hover::after,
+.inline-group .delete a:hover::after {
     content: "Eliminar este registro";
     position: absolute;
     bottom: 100%;
-    right: 0;
-    background: #333;
+    right: 10px;
+    background: #c0392b; /* Rojo oscuro */
     color: #fff;
-    padding: 4px 8px;
+    padding: 5px 10px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: normal;
     white-space: nowrap;
-    z-index: 1000;
-    margin-bottom: 5px;
+    z-index: 9999;
+    margin-bottom: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    pointer-events: none;
+}
+
+/* Triángulo del tooltip */
+.inline-group td.delete:hover::before,
+.inline-group .delete a:hover::before {
+    content: "";
+    position: absolute;
+    bottom: 100%;
+    right: 25px;
+    border: 6px solid transparent;
+    border-top-color: #c0392b;
+    margin-bottom: -4px;
+    z-index: 9999;
 }
 
 /* Ajuste fino para textareas pequeños */
