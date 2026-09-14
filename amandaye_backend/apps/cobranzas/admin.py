@@ -1,4 +1,11 @@
+import logging
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+from django.utils.html import format_html_join
+
+logger = logging.getLogger(__name__)
+
 from .models import CuentaCorriente, ConceptoCobro, Cargo, Pago, AplicacionPago
 from .services.cuentas import obtener_estado_cuenta
 
@@ -7,7 +14,16 @@ class CuentaCorrienteAdmin(admin.ModelAdmin):
     list_display = ('id', 'socio_titular', 'tipo_cuenta', 'estado', 'fecha_apertura', 'deuda_vencida_display', 'estado_cuenta_display')
     list_filter = ('estado', 'tipo_cuenta')
     search_fields = ('socio_titular__numero', 'socio_titular__cedulaTitular')
-    readonly_fields = ('fecha_apertura', 'fecha_cierre', 'created_at', 'updated_at', 'estado_cuenta_resumen')
+    readonly_fields = ('socio_titular', 'tipo_cuenta', 'estado', 'fecha_apertura', 'fecha_cierre', 'created_at', 'updated_at', 'estado_cuenta_resumen')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
     def get_search_results(self, request, queryset, search_term):
         queryset, use_distinct = super().get_search_results(request, queryset, search_term)
@@ -48,11 +64,7 @@ class CuentaCorrienteAdmin(admin.ModelAdmin):
         from django.utils.html import format_html
         res = obtener_estado_cuenta(obj)
 
-        estados_html = ""
-        for est, cant in res.get('resumen_estados', {}).items():
-            estados_html += f"<br>&nbsp;&nbsp;&nbsp;&nbsp;• {est}: {cant}"
-        if not res.get('resumen_estados'):
-            estados_html += "<br>&nbsp;&nbsp;&nbsp;&nbsp;• Sin cargos"
+        estados_html = format_html_join('', '<br>• {}: {}', res.get('resumen_estados', {}).items())
 
         ec = res.get('estado_cuenta', '-')
         colores = {'AL_DIA': '#2e7d32', 'CON_DEUDA': '#e65100', 'MOROSO': '#b71c1c'}
@@ -63,7 +75,7 @@ class CuentaCorrienteAdmin(admin.ModelAdmin):
             "<strong>Saldo Total Pendiente:</strong> ${}<br>"
             "<strong>Deuda Vencida:</strong> ${}<br>"
             "<strong>Estado de Cargos:</strong>{}",
-            color, ec, res['saldo_total'], res['deuda_vencida'], format_html(estados_html)
+            color, ec, res['saldo_total'], res['deuda_vencida'], estados_html
         )
 
 class AplicacionPagoInline(admin.TabularInline):
@@ -87,7 +99,37 @@ class CargoAdmin(admin.ModelAdmin):
     list_display = ('id', 'cuenta', 'concepto', 'periodo', 'importe', 'estado', 'fecha_vencimiento')
     list_filter = ('estado', 'concepto', 'periodo')
     search_fields = ('cuenta__socio_titular__numero',)
-    readonly_fields = ('total_aplicado', 'saldo_pendiente', 'esta_vencido')
+    readonly_fields = ('total_aplicado', 'saldo_pendiente', 'esta_vencido', 'estado',
+                       'registrado_por', 'anulado_por', 'fecha_anulacion', 'created_at', 'updated_at')
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = super().get_readonly_fields(request, obj)
+        return fields + (('cuenta', 'concepto', 'periodo', 'importe', 'fecha_emision', 'fecha_vencimiento') if obj else ())
+
+    @transaction.atomic
+    def save_model(self, request, obj, form, change):
+        if change:
+            # Only annotation edits are accepted; stale forms cannot undo a payment.
+            CuentaCorriente.objects.select_for_update().get(pk=obj.cuenta_id)
+            current = Cargo.objects.select_for_update().get(pk=obj.pk)
+            current.observaciones = obj.observaciones
+            current.save(update_fields=['observaciones', 'updated_at'])
+            obj.refresh_from_db()
+        else:
+            if not self.has_add_permission(request):
+                raise PermissionDenied
+            from .services.cargos import crear_cargo
+            created = crear_cargo(obj.cuenta, obj.concepto, obj.periodo, obj.fecha_emision,
+                                  obj.fecha_vencimiento, obj.importe, obj.observaciones, usuario=request.user)
+            obj.pk = created.pk
+            obj._state = created._state
+            obj.refresh_from_db()
+
+    def has_anular_permission(self, request):
+        return request.user.has_perm('cobranzas.puede_anular_cargo')
     inlines = [AplicacionPagoInline]
     actions = ['anular_cargos_seleccionados']
 
@@ -97,8 +139,10 @@ class CargoAdmin(admin.ModelAdmin):
             del actions['anular_cargos_seleccionados']
         return actions
 
-    @admin.action(description='Anular cargos seleccionados')
+    @admin.action(description='Anular cargos seleccionados', permissions=['anular'])
     def anular_cargos_seleccionados(self, request, queryset):
+        if not self.has_anular_permission(request):
+            raise PermissionDenied
         from apps.cobranzas.services.cargos import anular_cargo
         from django.core.exceptions import ValidationError
         from django.contrib import messages
@@ -106,7 +150,7 @@ class CargoAdmin(admin.ModelAdmin):
         errores = []
         for cargo in queryset:
             try:
-                anular_cargo(cargo, observaciones="Anulación masiva desde panel administrativo")
+                anular_cargo(cargo, observaciones="Anulación masiva desde panel administrativo", usuario=request.user)
                 count += 1
             except ValidationError as e:
                 msg = e.message if hasattr(e, 'message') else str(e)
@@ -158,10 +202,25 @@ class PagoAdmin(admin.ModelAdmin):
             fields.remove('aplicar_pago_link_ficha')
         return fields
 
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    @transaction.atomic
     def save_model(self, request, obj, form, change):
-        if not change:
-            obj.registrado_por = request.user
-        super().save_model(request, obj, form, change)
+        if change:
+            CuentaCorriente.objects.select_for_update().get(pk=obj.cuenta_id)
+            current = Pago.objects.select_for_update().get(pk=obj.pk)
+            current.referencia = obj.referencia
+            current.observaciones = obj.observaciones
+            current.save(update_fields=['referencia', 'observaciones', 'updated_at'])
+            obj.refresh_from_db()
+        else:
+            from .services.pagos import registrar_pago
+            created = registrar_pago(obj.cuenta, obj.fecha_pago, obj.importe_total, obj.medio_pago,
+                                     obj.referencia, obj.observaciones, usuario=request.user)
+            obj.pk = created.pk
+            obj._state = created._state
+            obj.refresh_from_db()
 
     @admin.display(description="Acción: Aplicar Saldo")
     def aplicar_pago_link_ficha(self, obj):
@@ -210,8 +269,13 @@ class PagoAdmin(admin.ModelAdmin):
             mes = now.month
             anio = now.year
         else:
-            mes = int(mes)
-            anio = int(anio)
+            from django.http import HttpResponseBadRequest
+            try:
+                mes, anio = int(mes), int(anio)
+                if not 1 <= mes <= 12 or not 1 <= anio <= 9999:
+                    raise ValueError
+            except (TypeError, ValueError):
+                return HttpResponseBadRequest('Mes o año no válido.')
             
         pagos = Pago.objects.filter(fecha_pago__month=mes, fecha_pago__year=anio).select_related(
             'cuenta__socio_titular', 'registrado_por'
@@ -248,14 +312,17 @@ class PagoAdmin(admin.ModelAdmin):
             importe = request.POST.get('importe')
             if cargo_id and importe:
                 try:
-                    cargo = Cargo.objects.get(pk=cargo_id)
-                    aplicar_pago(pago, cargo, Decimal(importe), usuario=request.user)
+                    cargo = Cargo.objects.get(pk=cargo_id, cuenta_id=pago.cuenta_id)
+                    aplicar_pago(pago, cargo, importe, usuario=request.user)
                     messages.success(request, f"Se aplicaron ${importe} al cargo {cargo_id} exitosamente.")
                     return redirect('admin:cobranzas_pago_change', pago.pk)
                 except ValidationError as e:
                     messages.error(request, getattr(e, 'message', str(e)))
-                except Exception as e:
-                    messages.error(request, f"Error inesperado: {str(e)}")
+                except (Cargo.DoesNotExist, ValueError, TypeError):
+                    messages.error(request, "Debe seleccionar un cargo válido para esta cuenta.")
+                except Exception as exc:
+                    logger.error("Error al aplicar pago %s (%s)", pago.pk, type(exc).__name__)
+                    messages.error(request, "No se pudo completar la operación. Intente nuevamente.")
             else:
                 messages.error(request, "Debe seleccionar un cargo y un importe válidos.")
 
@@ -275,8 +342,13 @@ class AplicacionPagoAdmin(admin.ModelAdmin):
     list_display = ('id', 'pago', 'cargo', 'importe_aplicado', 'estado', 'fecha_reversion', 'registrado_por')
     list_filter = ('estado',)
     search_fields = ('pago__cuenta__socio_titular__numero',)
-    readonly_fields = ('pago', 'cargo', 'importe_aplicado', 'estado', 'fecha_reversion', 'motivo_reversion', 'registrado_por', 'created_at', 'updated_at')
+    readonly_fields = ('pago', 'cargo', 'importe_aplicado', 'estado', 'fecha_reversion', 'motivo_reversion', 'registrado_por', 'revertido_por', 'created_at', 'updated_at')
     actions = ['revertir_aplicaciones']
+
+    def has_change_permission(self, request, obj=None):
+        # Even an empty readonly form must not save a stale ACTIVA instance
+        # over a concurrent reversal. Reversal has its own action permission.
+        return False
 
     def get_actions(self, request):
         actions = super().get_actions(request)
@@ -290,8 +362,13 @@ class AplicacionPagoAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    @admin.action(description='Revertir aplicaciones seleccionadas')
+    def has_revertir_permission(self, request):
+        return request.user.has_perm('cobranzas.puede_revertir_aplicacion_pago')
+
+    @admin.action(description='Revertir aplicaciones seleccionadas', permissions=['revertir'])
     def revertir_aplicaciones(self, request, queryset):
+        if not self.has_revertir_permission(request):
+            raise PermissionDenied
         from apps.cobranzas.services.pagos import revertir_aplicacion
         from django.core.exceptions import ValidationError
         from django.contrib import messages
@@ -303,7 +380,7 @@ class AplicacionPagoAdmin(admin.ModelAdmin):
             count = 0
             for aplicacion in queryset:
                 try:
-                    revertir_aplicacion(aplicacion, motivo=motivo)
+                    revertir_aplicacion(aplicacion, motivo=motivo, usuario=request.user)
                     count += 1
                 except ValidationError as e:
                     msg = e.message if hasattr(e, 'message') else str(e)

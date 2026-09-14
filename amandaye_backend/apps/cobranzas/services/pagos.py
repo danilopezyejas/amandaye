@@ -1,85 +1,73 @@
 import datetime
 from decimal import Decimal
-from django.db import transaction
 from django.core.exceptions import ValidationError
-from apps.cobranzas.models import Pago, Cargo, AplicacionPago, CuentaCorriente
-from django.contrib.auth.models import User
+from django.db import transaction
+from django.utils import timezone
+from apps.cobranzas.models import AplicacionPago, Cargo, CuentaCorriente, Pago
+from apps.cobranzas.services.movimientos import (
+    bloquear_movimientos, exigir_permiso, guardar_estado_cargo,
+    totales_actuales, validar_importe,
+)
 
-def registrar_pago(cuenta: CuentaCorriente, fecha_pago: datetime.date, importe_total: Decimal, medio_pago: str, referencia: str = None, observaciones: str = None, usuario: User = None) -> Pago:
-    if importe_total <= 0:
-        raise ValidationError("El importe del pago debe ser mayor a 0.")
-        
-    pago = Pago.objects.create(
-        cuenta=cuenta,
-        fecha_pago=fecha_pago,
-        importe_total=importe_total,
-        medio_pago=medio_pago,
-        referencia=referencia,
-        observaciones=observaciones,
-        registrado_por=usuario
-    )
+
+@transaction.atomic
+def registrar_pago(cuenta: CuentaCorriente, fecha_pago: datetime.date, importe_total: Decimal,
+                   medio_pago: str, referencia=None, observaciones=None, usuario=None) -> Pago:
+    exigir_permiso(usuario, 'cobranzas.add_pago')
+    importe_total = validar_importe(importe_total)
+    cuenta = CuentaCorriente.objects.select_for_update().get(pk=cuenta.pk)
+    # Closed accounts still accept settlement of historical debt.
+    pago = Pago(cuenta=cuenta, fecha_pago=fecha_pago, importe_total=importe_total,
+                medio_pago=medio_pago, referencia=referencia,
+                observaciones=observaciones, registrado_por=usuario)
+    pago.full_clean()
+    pago.save()
     return pago
 
+
 @transaction.atomic
-def aplicar_pago(pago: Pago, cargo: Cargo, importe_aplicar: Decimal, usuario: User = None) -> AplicacionPago:
-    if importe_aplicar <= 0:
-        raise ValidationError("El importe a aplicar debe ser mayor a 0.")
-    if pago.cuenta != cargo.cuenta:
-        raise ValidationError("El pago y el cargo no pertenecen a la misma cuenta.")
+def aplicar_pago(pago: Pago, cargo: Cargo, importe_aplicar: Decimal, usuario=None) -> AplicacionPago:
+    exigir_permiso(usuario, 'cobranzas.puede_aplicar_pago')
+    importe = validar_importe(importe_aplicar)
+    cuenta, pago, cargo = bloquear_movimientos(pago.cuenta_id, pago.pk, cargo.pk)
     if cargo.estado == Cargo.Estado.ANULADO:
-        raise ValidationError("No se puede aplicar a un cargo anulado.")
-        
-    if importe_aplicar > pago.saldo_disponible:
-        raise ValidationError(f"El importe a aplicar supera el saldo disponible del pago ({pago.saldo_disponible}).")
-        
-    if importe_aplicar > cargo.saldo_pendiente:
-        raise ValidationError(f"El importe a aplicar supera el saldo pendiente del cargo ({cargo.saldo_pendiente}).")
-        
+        raise ValidationError('No se puede aplicar a un cargo anulado.')
+    total_pago, total_cargo = totales_actuales(pago, cargo)
+    if importe > pago.importe_total - total_pago:
+        raise ValidationError('Saldo disponible del pago insuficiente.')
+    if importe > cargo.importe - total_cargo:
+        raise ValidationError('El importe supera el saldo pendiente del cargo.')
     aplicacion = AplicacionPago.objects.create(
-        pago=pago,
-        cargo=cargo,
-        importe_aplicado=importe_aplicar,
-        registrado_por=usuario
+        pago=pago, cargo=cargo, importe_aplicado=importe, registrado_por=usuario,
     )
-    
-    # Recalcular estado del cargo
-    if cargo.saldo_pendiente == 0:
-        cargo.estado = Cargo.Estado.PAGADO
-    else:
-        cargo.estado = Cargo.Estado.PARCIAL
-    cargo.save()
-    
-    # Disparar recálculo de habilitación para el titular
-    from apps.usuarios.models import Personas
-    from apps.usuarios.services.habilitacion import recalcular_habilitacion_persona
-    
-    socio_titular = pago.cuenta.socio_titular
-    persona_titular = Personas.objects.filter(Cedula=socio_titular.cedulaTitular).first()
-    if persona_titular:
-        recalcular_habilitacion_persona(persona_titular)
-        
+    guardar_estado_cargo(cargo, total_cargo + importe)
+    from apps.usuarios.services.habilitacion import recalcular_habilitados
+    recalcular_habilitados(socio_id=cuenta.socio_titular_id)
     return aplicacion
 
-@transaction.atomic
-def revertir_aplicacion(aplicacion: AplicacionPago, motivo: str = None):
-    from django.utils import timezone
-    if aplicacion.estado == AplicacionPago.Estado.REVERTIDA:
-        from django.core.exceptions import ValidationError
-        raise ValidationError("Esta aplicación ya fue revertida.")
 
-    cargo = aplicacion.cargo
-    
-    # Soft-delete: marcar como revertida sin borrar el registro
+@transaction.atomic
+def revertir_aplicacion(aplicacion: AplicacionPago, motivo=None, usuario=None):
+    exigir_permiso(usuario, 'cobranzas.puede_revertir_aplicacion_pago')
+    origen = AplicacionPago.objects.only('pago_id', 'cargo_id').get(pk=aplicacion.pk)
+    cuenta_id = Pago.objects.values_list('cuenta_id', flat=True).get(pk=origen.pago_id)
+    cuenta, pago, cargo = bloquear_movimientos(cuenta_id, origen.pago_id, origen.cargo_id)
+    aplicacion = AplicacionPago.objects.select_for_update().get(pk=origen.pk)
+    if aplicacion.pago_id != pago.pk or aplicacion.cargo_id != cargo.pk:
+        raise ValidationError('El movimiento cambió; vuelva a cargarlo.')
+    if aplicacion.estado != AplicacionPago.Estado.ACTIVA:
+        raise ValidationError('Esta aplicación ya fue revertida.')
+    if cargo.estado == Cargo.Estado.ANULADO:
+        raise ValidationError('El cargo requiere conciliación antes de revertir.')
+    _, total_cargo = totales_actuales(pago, cargo)
     aplicacion.estado = AplicacionPago.Estado.REVERTIDA
     aplicacion.fecha_reversion = timezone.now()
-    aplicacion.motivo_reversion = motivo or "Reversión manual"
-    aplicacion.save()
-    
-    # Recalculamos el estado del cargo en base a las aplicaciones ACTIVAS restantes
-    if cargo.saldo_pendiente >= cargo.importe:
-        cargo.estado = Cargo.Estado.PENDIENTE
-    elif cargo.saldo_pendiente > 0:
-        cargo.estado = Cargo.Estado.PARCIAL
-    else:
-        cargo.estado = Cargo.Estado.PAGADO
-    cargo.save()
+    aplicacion.motivo_reversion = motivo or 'Reversión manual'
+    aplicacion.revertido_por = usuario
+    aplicacion.save(update_fields=[
+        'estado', 'fecha_reversion', 'motivo_reversion', 'revertido_por', 'updated_at',
+    ])
+    guardar_estado_cargo(cargo, total_cargo - aplicacion.importe_aplicado)
+    from apps.usuarios.services.habilitacion import recalcular_habilitados
+    recalcular_habilitados(socio_id=cuenta.socio_titular_id)
+    return aplicacion

@@ -1,3 +1,4 @@
+from django.contrib.auth.models import User
 import datetime
 from decimal import Decimal
 from django.test import TestCase
@@ -11,9 +12,10 @@ from apps.cobranzas.services.cuotas import generar_cuotas_mensuales
 
 class CobranzasServicesTestCase(TestCase):
     def setUp(self):
+        self.actor = User.objects.create_superuser(username='service_actor', password='test-only')
         self.socio = Socios.objects.create(
             numero=1001,
-            tipo="INDIVIDUAL",
+            tipo_socio="INDIVIDUAL",
             cedulaTitular="12345678",
             activo=1,
             fechaAlta=datetime.date(2025, 1, 1)
@@ -45,9 +47,9 @@ class CobranzasServicesTestCase(TestCase):
             cuenta=self.cuenta, concepto=self.concepto, periodo="2026-04",
             fecha_emision=datetime.date.today(), fecha_vencimiento=datetime.date.today(), importe=Decimal('1000.00')
         )
-        pago = registrar_pago(self.cuenta, datetime.date.today(), Decimal('1000.00'), 'EFECTIVO')
+        pago = registrar_pago(self.cuenta, datetime.date.today(), Decimal('1000.00'), 'EFECTIVO', usuario=self.actor)
         
-        aplicacion = aplicar_pago(pago, cargo, Decimal('1000.00'))
+        aplicacion = aplicar_pago(pago, cargo, Decimal('1000.00'), usuario=self.actor)
         
         cargo.refresh_from_db()
         pago.refresh_from_db()
@@ -61,9 +63,9 @@ class CobranzasServicesTestCase(TestCase):
             cuenta=self.cuenta, concepto=self.concepto, periodo="2026-04",
             fecha_emision=datetime.date.today(), fecha_vencimiento=datetime.date.today(), importe=Decimal('1000.00')
         )
-        pago = registrar_pago(self.cuenta, datetime.date.today(), Decimal('500.00'), 'EFECTIVO')
+        pago = registrar_pago(self.cuenta, datetime.date.today(), Decimal('500.00'), 'EFECTIVO', usuario=self.actor)
         
-        aplicar_pago(pago, cargo, Decimal('500.00'))
+        aplicar_pago(pago, cargo, Decimal('500.00'), usuario=self.actor)
         
         cargo.refresh_from_db()
         self.assertEqual(cargo.estado, Cargo.Estado.PARCIAL)
@@ -74,10 +76,10 @@ class CobranzasServicesTestCase(TestCase):
             cuenta=self.cuenta, concepto=self.concepto, periodo="2026-04",
             fecha_emision=datetime.date.today(), fecha_vencimiento=datetime.date.today(), importe=Decimal('1000.00')
         )
-        pago = registrar_pago(self.cuenta, datetime.date.today(), Decimal('1000.00'), 'EFECTIVO')
-        aplicacion = aplicar_pago(pago, cargo, Decimal('1000.00'))
+        pago = registrar_pago(self.cuenta, datetime.date.today(), Decimal('1000.00'), 'EFECTIVO', usuario=self.actor)
+        aplicacion = aplicar_pago(pago, cargo, Decimal('1000.00'), usuario=self.actor)
         
-        revertir_aplicacion(aplicacion)
+        revertir_aplicacion(aplicacion, usuario=self.actor)
         cargo.refresh_from_db()
         
         self.assertEqual(cargo.estado, Cargo.Estado.PENDIENTE)
@@ -88,7 +90,7 @@ class CobranzasServicesTestCase(TestCase):
             cuenta=self.cuenta, concepto=self.concepto, periodo="2026-04",
             fecha_emision=datetime.date.today(), fecha_vencimiento=datetime.date.today(), importe=Decimal('1000.00')
         )
-        anular_cargo(cargo)
+        anular_cargo(cargo, usuario=self.actor)
         cargo.refresh_from_db()
         self.assertEqual(cargo.estado, Cargo.Estado.ANULADO)
         self.assertEqual(cargo.saldo_pendiente, Decimal('0.00'))

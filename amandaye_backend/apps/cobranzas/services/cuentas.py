@@ -3,9 +3,11 @@ from django.db import transaction
 from apps.cobranzas.models import CuentaCorriente
 from apps.usuarios.models import Socios
 
+@transaction.atomic
 def crear_cuenta_corriente_para_titular(socio: Socios) -> CuentaCorriente:
     """Crea o retorna la cuenta corriente activa de un socio titular."""
-    cuenta = CuentaCorriente.objects.filter(socio_titular=socio).first()
+    socio = Socios.objects.select_for_update().get(pk=socio.pk)
+    cuenta = CuentaCorriente.objects.select_for_update().filter(socio_titular=socio).first()
     if cuenta:
         if cuenta.estado == CuentaCorriente.Estado.CERRADA:
             cuenta.estado = CuentaCorriente.Estado.ACTIVA

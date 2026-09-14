@@ -1,99 +1,44 @@
-# Documentación del Proyecto Web - Club Amandayé Ipeguá
+# Club Amandayé Ipeguá
 
-Este proyecto es la plataforma oficial del Club Amandayé Ipeguá, diseñada con una arquitectura moderna, segura y estética premium.
+Gestión de socios, solicitudes, cuentas corrientes y cobranzas con Django 5.2 LTS, Django REST Framework y Vue 3/TypeScript. El administrador usa sesiones Django y CSRF; la API privada usa JWT con permisos por operación. La inscripción pública acepta solicitudes pendientes y devuelve una confirmación mínima.
 
----
+## Instalar y ejecutar
 
-## 1. Arquitectura General
+Seguir [Despliegue y desarrollo](docs/DEPLOYMENT.md). Incluye creación de secretos, instalación nueva, migración de datos anteriores y comandos de desarrollo.
 
-El proyecto utiliza una arquitectura desacoplada con un backend robusto y un frontend dinámico.
+- Producción: `docker-compose.yml`, Gunicorn y frontend compilado detrás de Caddy con HTTPS; MySQL 8.4 y Redis permanecen en redes internas.
+- Desarrollo: `docker-compose.dev.yml` independiente, backend en `127.0.0.1:8000` y Vite local. Requiere Docker con contenedores Linux y Node 24, o una versión compatible con `amandaye_frontend/package.json`.
+- Secretos: `python scripts/bootstrap_secrets.py` con Python 3.12. El generador conserva las credenciales existentes. Las configuraciones inseguras anteriores ya no permiten iniciar el backend.
 
-### Frontend (Interfaz Web)
+Los comandos no importan el SQL anterior ni modifican automáticamente una base existente. La migración y la provisión de usuarios se ejecutan expresamente según la guía.
 
-*   **Framework:** Vue 3 (Composition API)
-*   **Lenguaje:** TypeScript
-*   **Estado:** Pinia
-*   **Herramientas:** Vite, TailwindCSS
-*   **Estética:** Diseño Premium con Glassmorphism, fondos inmersivos y animaciones fluidas.
-*   **Seguridad:** Autenticación JWT con rotación de tokens y Axios Interceptors para manejo de sesiones.
-*   **Funcionalidad:**
-    *   Landing page de alto impacto visual.
-    *   Ficha de inscripción dinámica.
-    *   Integración con Redes Sociales (WhatsApp, Instagram, Facebook).
-    *   Acceso directo al panel administrativo para personal autorizado.
-*   **Servidor en desarrollo:** `http://localhost:5173/`
+## Pruebas locales aisladas
 
-### Backend (Lógica + Datos)
+Desde la raíz, con Python 3.12 y Node compatibles instalados:
 
-*   **Framework:** Django 4 + Django REST Framework (DRF)
-*   **Autenticación:** SimpleJWT (JSON Web Tokens) e Historial de Modificaciones en el Admin.
-*   **Base de Datos:** MySQL (soporta SQLite para desarrollo rápido).
-*   **Funcionalidad:**
-    *   API REST para gestión de usuarios, cobranzas y actividades.
-    *   Panel de administración personalizado (branding, búsqueda avanzada, filtros optimizados).
-    *   Sistema de rastreo de cambios ("From/To") en el Admin de Django.
-*   **Servidor en desarrollo:** `http://localhost:8000/`
-
----
-
-## 2. Estructura de Carpetas
-
-```plaintext
-amandaye/
-├── amandaye_backend/          # Proyecto Django
-│   ├── apps/
-│   │   ├── usuarios/          # Autenticación JWT, Perfiles, Login
-│   │   ├── cobranzas/         # Gestión de pagos y cuentas (Nuevo)
-│   │   ├── alertas/           # Integración INUMET
-│   │   ├── brevet/            # Material de estudio y exámenes
-│   │   └── horarios/          # Gestión de clases y actividades
-│   ├── amandaye_backend/      # Configuración central (settings, urls)
-│   └── manage.py
-│
-└── amandaye_frontend/         # Proyecto Vue 3 + TypeScript
-    ├── src/
-    │   ├── api/               # Cliente Axios e Interceptores
-    │   ├── stores/            # Pinia (auth, user state)
-    │   ├── router/            # Navigation Guards y Rutas
-    │   ├── components/        # Componentes UI reutilizables
-    │   └── App.vue            # Componente raíz con diseño modernizado
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install --require-hashes -r amandaye_backend/requirements.txt
+Set-Location amandaye_backend
+..\.venv\Scripts\python.exe manage.py test --settings=amandaye_backend.settings_test --noinput
+..\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run --settings=amandaye_backend.settings_test
+Set-Location ../amandaye_frontend
+npm ci --ignore-scripts
+npm test
+npm run build
+npm audit
 ```
 
----
+La configuración de pruebas usa credenciales sintéticas y SQLite en memoria: no lee el `.env` ni la base personal. Las pruebas de concurrencia requieren MySQL/InnoDB y se omiten en SQLite; ver la guía para ejecutarlas sobre una base desechable.
 
-## 3. Guía de Inicio
+## Estructura
 
-### Backend (Django):
-1. Crear entorno virtual: `python -m venv venv`
-2. Activar entorno: `.\venv\Scripts\activate` (Windows)
-3. Instalar dependencias: `pip install -r requirements.txt`
-4. Ejecutar: `python manage.py runserver`
+- `amandaye_backend/apps/usuarios/`: socios, personas, estados, permisos y solicitudes.
+- `amandaye_backend/apps/cobranzas/`: cargos, pagos, aplicaciones, cuotas y auditoría.
+- `amandaye_backend/amandaye_backend/security/`: bloqueo de login, respuestas seguras y pruebas de configuración.
+- `amandaye_frontend/src/`: interfaz Vue, transporte autenticado y formularios.
+- `docker/`, `scripts/`, `docs/`: ejecución y operación.
 
-### Frontend (Vue 3):
-1. Instalar dependencias: `npm install`
-2. Ejecutar: `npm run dev`
+Los movimientos financieros se realizan mediante servicios transaccionales que verifican al operador. Los importes y los vínculos de movimientos existentes no se editan ni se eliminan desde formularios genéricos; las reversiones y anulaciones conservan auditoría. Directiva controla las transiciones de socios y los ajustes de cuota.
 
----
-
-## 4. Accesos en Desarrollo
-
-*   **Sitio Web:** `http://localhost:5173/` (Landing + Dashboard)
-*   **Panel Administrativo:** `http://localhost:8000/admin/`
-
----
-
-## 5. Seguridad y Personalización
-
-*   **JWT:** El sistema refresca automáticamente los tokens para mantener la sesión segura.
-*   **Admin Tracking:** Cada cambio realizado en el panel administrativo queda grabado con el valor anterior y el nuevo.
-*   **Optimización de Búsqueda:** El admin permite búsquedas complejas cruzando tablas de socios y usuarios.
-
----
-
-## 6. Próximos Pasos
-
-*   [ ] Integración total del módulo de cobranzas en el frontend.
-*   [ ] Notificaciones automáticas por correo/whatsapp.
-*   [ ] Dashboard analítico para la directiva.
-*   [ ] Consumo en tiempo real de la API de INUMET.
-
+Los secretos, datos personales locales y archivos generados quedan excluidos de Git y del contexto Docker. Esta exclusión no borra versiones anteriores del historial compartido.

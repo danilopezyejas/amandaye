@@ -3,10 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
@@ -15,14 +19,14 @@
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue/runtime-dom": "^3.5.18",
     "autoprefixer": "^10.4.21",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.28",
     "tailwindcss": "^4.1.11",
     "typescript": "~5.8.3",
-    "vite": "^7.0.4",
+    "vite": "7.3.6",
     "vue-tsc": "^3.0.5"
   },
   "dependencies": {
-    "axios": "^1.15.0",
+    "axios": "^1.20.0",
     "jwt-decode": "^4.0.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.18",

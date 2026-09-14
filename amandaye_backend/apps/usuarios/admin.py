@@ -1,4 +1,10 @@
-from django.contrib import admin
+import logging
+from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import transaction
+from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 from django.db.models import Q
 from .models import (
     Embarcaciones,
@@ -292,7 +298,7 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
         from django.urls import reverse
         
         if not obj or not obj.numeroSocio or obj.numeroSocio <= 0:
-            return format_html('<span style="color: #7f8c8d; font-style: italic;">Persona no vinculada a un socio activo.</span>')
+            return format_html('<span style="color: #7f8c8d; font-style: italic;">{}</span>', "Persona no vinculada a un socio activo.")
 
         socio = Socios.objects.filter(numero=obj.numeroSocio).first()
         if not socio:
@@ -384,7 +390,7 @@ class EstadoActivoFilter(admin.SimpleListFilter):
 @admin.register(Socios)
 class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
     list_display = ("numero", "cedula", "nombre_completo_socio", "tipo_socio", "tipo_cuota", "estado_activo", "tiene_cuenta", "fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
-    readonly_fields = ("enlace_a_persona", "fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
+    readonly_fields = ("enlace_a_persona", "activo", "tipo_cuota", "fechaSolicitud", "fechaAprobacion", "fechaAlta", "fechaBaja")
     
     fieldsets = (
         ('Navegación Rápida', {
@@ -401,144 +407,107 @@ class SociosAdmin(HistorialValoresMixin, admin.ModelAdmin):
         }),
     )
 
-    def get_actions(self, request):
-        actions = super().get_actions(request)
-        if 'aprobar_socios_seleccionados' in actions and not request.user.has_perm('usuarios.puede_aprobar_socio'):
-            del actions['aprobar_socios_seleccionados']
-        if 'rechazar_socios_seleccionados' in actions and not request.user.has_perm('usuarios.puede_rechazar_socio'):
-            del actions['rechazar_socios_seleccionados']
-        if 'dar_baja_socios_seleccionados' in actions and not request.user.has_perm('usuarios.puede_dar_baja_socio'):
-            del actions['dar_baja_socios_seleccionados']
-        return actions
+    actions = (
+        'aprobar_socios_seleccionados', 'rechazar_socios_seleccionados',
+        'dar_baja_socios_seleccionados', 'reactivar_socios_seleccionados',
+        'cambiar_cuota_socios_seleccionados',
+    )
+    search_fields = ("numero", "cedulaTitular")
+    list_filter = (EstadoActivoFilter, "tipo_socio", "tipo_cuota")
+
+    def get_readonly_fields(self, request, obj=None):
+        fields = super().get_readonly_fields(request, obj)
+        return fields + (("numero",) if obj is not None else ())
+
+    def has_aprobar_socio_permission(self, request):
+        return request.user.has_perm('usuarios.puede_aprobar_socio')
+
+    def has_rechazar_socio_permission(self, request):
+        return request.user.has_perm('usuarios.puede_rechazar_socio')
+
+    def has_dar_baja_socio_permission(self, request):
+        return request.user.has_perm('usuarios.puede_dar_baja_socio')
 
     @admin.display(description="Cuenta", boolean=True)
     def tiene_cuenta(self, obj):
         return hasattr(obj, 'cuenta_corriente') and obj.cuenta_corriente is not None
 
-    @admin.action(description='Aprobar Socios Pendientes (Alta + Crear CC)')
+    def _transicionar(self, request, queryset, permiso, servicio, descripcion):
+        if not request.user.has_perm(permiso):
+            raise PermissionDenied
+        count = 0
+        for socio in queryset.order_by('pk'):
+            try:
+                with transaction.atomic():
+                    actualizado = servicio(socio, usuario=request.user)
+                    self.log_change(request, actualizado, descripcion)
+                count += 1
+            except ValidationError as exc:
+                self.message_user(request, '; '.join(exc.messages), messages.ERROR)
+            except Exception as exc:
+                logger.error("Error en transición de socio %s (%s)", socio.pk, type(exc).__name__)
+                self.message_user(request, "No se pudo completar la operación. Intente nuevamente.", messages.ERROR)
+        if count:
+            self.message_user(request, f"{count} socios procesados.", messages.SUCCESS)
+
+    @admin.action(description='Aprobar socios pendientes', permissions=['aprobar_socio'])
     def aprobar_socios_seleccionados(self, request, queryset):
         from apps.usuarios.services.socios import aprobar_socio
-        count = 0
-        from django.core.exceptions import ValidationError
-        from django.contrib import messages
-        errores = []
-        for socio in queryset:
-            try:
-                aprobar_socio(socio)
-                count += 1
-            except ValidationError as e:
-                msg = e.message if hasattr(e, 'message') else str(e)
-                errores.append(f"Socio {socio.numero}: {msg}")
-            except Exception as e:
-                errores.append(f"Socio {socio.numero}: {str(e)}")
-                
-        if count:
-            self.message_user(request, f"{count} socios aprobados exitosamente.", level=messages.SUCCESS)
-        if errores:
-            for error in errores:
-                self.message_user(request, error, level=messages.ERROR)
+        self._transicionar(request, queryset, 'usuarios.puede_aprobar_socio', aprobar_socio, 'Aprobación de socio')
 
-    @admin.action(description='Rechazar Solicitudes Pendientes')
+    @admin.action(description='Rechazar solicitudes', permissions=['rechazar_socio'])
     def rechazar_socios_seleccionados(self, request, queryset):
         from apps.usuarios.services.socios import rechazar_socio
-        from django.core.exceptions import ValidationError
-        from django.contrib import messages
-        count = 0
-        errores = []
-        for socio in queryset:
-            try:
-                rechazar_socio(socio, motivo="Rechazo masivo desde panel administrativo")
-                count += 1
-            except ValidationError as e:
-                msg = e.message if hasattr(e, 'message') else str(e)
-                errores.append(f"Socio {socio.numero}: {msg}")
-            except Exception as e:
-                errores.append(f"Socio {socio.numero}: {str(e)}")
-        if count:
-            self.message_user(request, f"{count} solicitudes rechazadas.", level=messages.SUCCESS)
-        if errores:
-            for error in errores:
-                self.message_user(request, error, level=messages.ERROR)
+        self._transicionar(request, queryset, 'usuarios.puede_rechazar_socio', rechazar_socio, 'Rechazo de solicitud')
 
-    @admin.action(description='Dar de Baja a Socios')
+    @admin.action(description='Dar de baja socios', permissions=['dar_baja_socio'])
     def dar_baja_socios_seleccionados(self, request, queryset):
         from apps.usuarios.services.socios import dar_baja_socio
-        count = 0
-        from django.core.exceptions import ValidationError
-        from django.contrib import messages
-        errores = []
-        for socio in queryset:
-            try:
-                dar_baja_socio(socio, motivo="Baja Administrativa masiva (Panel)")
-                count += 1
-            except ValidationError as e:
-                msg = e.message if hasattr(e, 'message') else str(e)
-                errores.append(f"Socio {socio.numero}: {msg}")
-            except Exception as e:
-                errores.append(f"Socio {socio.numero}: {str(e)}")
-                
-        if count:
-            self.message_user(request, f"{count} socios dados de baja exitosamente.", level=messages.SUCCESS)
-        if errores:
-            for error in errores:
-                self.message_user(request, error, level=messages.ERROR)
-    search_fields = ("numero", "cedulaTitular")
-    list_filter = (EstadoActivoFilter, "tipo_socio", "tipo_cuota")
+        self._transicionar(request, queryset, 'usuarios.puede_dar_baja_socio', dar_baja_socio, 'Baja de socio')
 
+    @admin.action(description='Reactivar socios', permissions=['aprobar_socio'])
+    def reactivar_socios_seleccionados(self, request, queryset):
+        from apps.usuarios.services.socios import reactivar_socio
+        self._transicionar(request, queryset, 'usuarios.puede_aprobar_socio', reactivar_socio, 'Reactivación de socio')
+
+    @admin.action(description='Cambiar tipo de cuota', permissions=['aprobar_socio'])
+    def cambiar_cuota_socios_seleccionados(self, request, queryset):
+        if not self.has_aprobar_socio_permission(request):
+            raise PermissionDenied
+        from django import forms
+        from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+        from django.shortcuts import render
+        from apps.usuarios.services.socios import cambiar_tipo_cuota
+
+        class CambioCuotaForm(forms.Form):
+            tipo_cuota = forms.ChoiceField(label='Tipo de cuota', choices=Socios._meta.get_field('tipo_cuota').choices)
+            motivo = forms.CharField(label='Motivo', max_length=500, widget=forms.Textarea(attrs={'rows': 3}))
+
+        form = CambioCuotaForm(request.POST if request.POST.get('confirmar_cuota') else None)
+        if form.is_bound and form.is_valid():
+            from functools import partial
+            servicio = partial(cambiar_tipo_cuota, **form.cleaned_data)
+            self._transicionar(request, queryset, 'usuarios.puede_aprobar_socio', servicio, 'Cambio autorizado de tipo de cuota')
+            return None
+        context = dict(
+            self.admin_site.each_context(request), title='Cambiar tipo de cuota',
+            queryset=queryset, form=form, action_checkbox_name=ACTION_CHECKBOX_NAME,
+            opts=self.model._meta,
+        )
+        return render(request, 'admin/usuarios/socios/cambiar_cuota.html', context)
+
+    @transaction.atomic
     def save_model(self, request, obj, form, change):
-        from django.contrib import messages
-
         if change:
-            try:
-                db_obj = Socios.objects.get(pk=obj.pk)
-                viejo_activo = db_obj.activo
-            except Socios.DoesNotExist:
-                viejo_activo = None
-
-            nuevo_activo = obj.activo
-
-            if viejo_activo != nuevo_activo:
-
-                # PENDIENTE → ALTA: aprobación completa (crea CC y cargos)
-                if viejo_activo == 2 and nuevo_activo == 1:
-                    from apps.usuarios.services.socios import aprobar_socio
-                    try:
-                        aprobar_socio(db_obj)
-                        self.message_user(request, "Socio aprobado y Cuenta Corriente generada.", level=messages.SUCCESS)
-                    except Exception as e:
-                        self.message_user(request, f"Error al aprobar: {str(e)}", level=messages.ERROR)
-                    return
-
-                # BAJA → ALTA: reactivación (reabre CC existente)
-                elif viejo_activo == 0 and nuevo_activo == 1:
-                    from apps.usuarios.services.socios import reactivar_socio
-                    try:
-                        reactivar_socio(db_obj, motivo="Reactivación manual desde formulario")
-                        self.message_user(request, "Socio reactivado correctamente.", level=messages.SUCCESS)
-                    except Exception as e:
-                        self.message_user(request, f"Error al reactivar: {str(e)}", level=messages.ERROR)
-                    return
-
-                # PENDIENTE → RECHAZADO
-                elif viejo_activo == 2 and nuevo_activo == 3:
-                    from apps.usuarios.services.socios import rechazar_socio
-                    try:
-                        rechazar_socio(db_obj, motivo="Rechazo manual desde formulario")
-                        self.message_user(request, "Solicitud rechazada correctamente.", level=messages.SUCCESS)
-                    except Exception as e:
-                        self.message_user(request, f"Error al rechazar: {str(e)}", level=messages.ERROR)
-                    return
-
-                # ALTA/PENDIENTE → BAJA
-                elif viejo_activo in [1, 2] and nuevo_activo == 0:
-                    from apps.usuarios.services.socios import dar_baja_socio
-                    try:
-                        dar_baja_socio(db_obj, motivo="Baja manual desde selector de formulario")
-                        self.message_user(request, "Socio dado de baja correctamente.", level=messages.SUCCESS)
-                    except Exception as e:
-                        self.message_user(request, f"Error dando de baja: {str(e)}", level=messages.ERROR)
-                    return
-
+            previous = Socios.objects.select_for_update().get(pk=obj.pk)
+            # A concurrent transition must not be undone by a stale edit form.
+            for name in ('activo', 'tipo_cuota', 'fechaSolicitud', 'fechaAprobacion', 'fechaAlta', 'fechaBaja'):
+                setattr(obj, name, getattr(previous, name))
+        else:
+            obj.activo = 2
+            obj.tipo_cuota = 'ANUAL'
+            obj.fechaSolicitud = timezone.localdate()
+            obj.fechaAprobacion = obj.fechaAlta = obj.fechaBaja = None
         super().save_model(request, obj, form, change)
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):

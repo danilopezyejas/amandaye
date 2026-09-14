@@ -5,6 +5,8 @@ from apps.usuarios.models import Socios, Personas, Socios_cambios
 from apps.cobranzas.services.cuentas import crear_cuenta_corriente_para_titular
 from apps.cobranzas.services.cargos import crear_cargo
 from apps.cobranzas.models import ConceptoCobro, CuentaCorriente
+from apps.cobranzas.services.movimientos import exigir_permiso
+from apps.usuarios.services.habilitacion import recalcular_habilitados
 
 
 # ---------------------------------------------------------------------------
@@ -21,13 +23,13 @@ def _siguiente_id_cambios() -> int:
     return ultimo.id + 1 if ultimo else 1
 
 
-def _registrar_cambio(accion: str, comentario: str):
+def _registrar_cambio(accion: str, comentario: str, usuario=None):
     """Registra en socios_cambios. El campo accion debe estar en SET('Alta','Baja','Rechazo')."""
     Socios_cambios.objects.create(
         id=_siguiente_id_cambios(),
         fecha=datetime.date.today(),
         accion=accion,
-        comentario=comentario,
+        comentario=(f"[actor:{usuario.pk}] {comentario}" if usuario else comentario),
     )
 
 
@@ -104,9 +106,6 @@ def crear_solicitud_socio(datos_titular: dict, datos_familiares: list = None) ->
     """
     _validar_titular(datos_titular)
 
-    if Personas.objects.filter(Cedula=datos_titular["Cedula"]).exists():
-        raise ValidationError("Ya existe una persona con esta cédula.")
-
     if datos_familiares and len(datos_familiares) > 3:
         raise ValidationError("El núcleo familiar no puede exceder 3 integrantes adicionales (pareja + 2 hijos).")
 
@@ -125,6 +124,10 @@ def crear_solicitud_socio(datos_titular: dict, datos_familiares: list = None) ->
                 raise ValidationError("Solo se permite 1 pareja/tutor en el núcleo familiar.")
             if hijos > 2:
                 raise ValidationError("Solo se permiten hasta 2 hijos en el núcleo familiar.")
+
+    cedulas = [datos_titular['Cedula']] + [f.get('Cedula') for f in (datos_familiares or [])]
+    if len(set(cedulas)) != len(cedulas) or Personas.objects.filter(Cedula__in=cedulas).exists():
+        raise ValidationError("Ya existe una persona con esta cédula.", code='duplicate_person')
 
     numero_socio = obtener_siguiente_numero_socio()
 
@@ -182,13 +185,15 @@ def crear_solicitud_socio(datos_titular: dict, datos_familiares: list = None) ->
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
-def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socios:
+def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True, usuario=None) -> Socios:
     """
     Aprueba un socio PENDIENTE: pasa a ALTA, crea CuentaCorriente y emite cargos iniciales.
     - Bloquea si tiene deuda histórica pendiente
     - Matrícula doble si reingresa en menos de 1 año
     - Importes siempre desde ConceptoCobro.importe_por_defecto
     """
+    exigir_permiso(usuario, 'usuarios.puede_aprobar_socio')
+    socio = Socios.objects.select_for_update().get(pk=socio.pk)
     if socio.esta_rechazado:
         raise ValidationError("No se puede aprobar un socio RECHAZADO. Cree una nueva solicitud.")
     if not socio.esta_pendiente:
@@ -197,7 +202,7 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socio
         raise ValidationError("El socio no está PENDIENTE.")
 
     # Validar deuda histórica
-    cuenta_historica = CuentaCorriente.objects.filter(socio_titular=socio).first()
+    cuenta_historica = CuentaCorriente.objects.select_for_update().filter(socio_titular=socio).first()
     if cuenta_historica:
         from apps.cobranzas.services.cuentas import obtener_estado_cuenta
         estado_cc = obtener_estado_cuenta(cuenta_historica)
@@ -239,6 +244,7 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socio
             fecha_vencimiento=vence,
             importe=precio_mat,
             observaciones="Matrícula automática de alta / reingreso",
+            usuario=usuario,
         )
 
         # --- Primera cuota mensual ---
@@ -264,12 +270,15 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socio
                 fecha_vencimiento=vence,
                 importe=importe,
                 observaciones=f"Cuota mensual inicial ({socio.tipo_socio} - {socio.tipo_cuota})",
+                usuario=usuario,
             )
 
     _registrar_cambio(
         "Alta",
         f"[APROBADO] Socio {socio.numero} dado de ALTA. Cuenta {cuenta.id} generada.",
+        usuario=usuario,
     )
+    recalcular_habilitados(socio_id=socio.pk)
     return socio
 
 
@@ -278,12 +287,14 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True) -> Socio
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
-def rechazar_socio(socio: Socios, motivo: str = "Solicitud rechazada") -> Socios:
+def rechazar_socio(socio: Socios, motivo: str = "Solicitud rechazada", usuario=None) -> Socios:
     """
     Rechaza una solicitud PENDIENTE.
     - No genera cuenta corriente ni cargos
     - Limpia fechaAlta (el socio rechazado no tiene fecha de alta)
     """
+    exigir_permiso(usuario, 'usuarios.puede_rechazar_socio')
+    socio = Socios.objects.select_for_update().get(pk=socio.pk)
     if not socio.esta_pendiente:
         if socio.esta_rechazado:
             raise ValidationError("El socio ya está RECHAZADO.")
@@ -295,7 +306,8 @@ def rechazar_socio(socio: Socios, motivo: str = "Solicitud rechazada") -> Socios
     socio.fechaAlta = None  # No tiene alta efectiva
     socio.save()
 
-    _registrar_cambio("Rechazo", f"[RECHAZADO] Socio {socio.numero}: {motivo}")
+    _registrar_cambio("Rechazo", f"[RECHAZADO] Socio {socio.numero}: {motivo}", usuario=usuario)
+    recalcular_habilitados(socio_id=socio.pk)
     return socio
 
 
@@ -304,12 +316,14 @@ def rechazar_socio(socio: Socios, motivo: str = "Solicitud rechazada") -> Socios
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
-def dar_baja_socio(socio: Socios, motivo: str = "Baja Administrativa") -> Socios:
+def dar_baja_socio(socio: Socios, motivo: str = "Baja Administrativa", usuario=None) -> Socios:
     """
     Da de baja al socio.
     - La CuentaCorriente siempre pasa a CERRADA
     - Si queda con deuda, el estado_cuenta reflejará MOROSO
     """
+    exigir_permiso(usuario, 'usuarios.puede_dar_baja_socio')
+    socio = Socios.objects.select_for_update().get(pk=socio.pk)
     if socio.esta_de_baja:
         raise ValidationError("El socio ya se encuentra de baja.")
 
@@ -317,18 +331,15 @@ def dar_baja_socio(socio: Socios, motivo: str = "Baja Administrativa") -> Socios
     socio.fechaBaja = datetime.date.today()
     socio.save(update_fields=['activo', 'fechaBaja'])
 
-    # Cerrar la cuenta — error aquí NO revierte el cambio de estado del socio
-    from django.db import transaction as db_transaction
-    try:
-        with db_transaction.atomic():
-            cc = socio.cuenta_corriente
-            cc.estado = CuentaCorriente.Estado.CERRADA
-            cc.fecha_cierre = datetime.date.today()
-            cc.save()
-    except Exception:
-        pass  # Socio sin cuenta o error al cerrar CC (la baja ya fue guardada)
+    # Closure, membership state, audit and eligibility commit together.
+    cc = CuentaCorriente.objects.select_for_update().filter(socio_titular=socio).first()
+    if cc is not None:
+        cc.estado = CuentaCorriente.Estado.CERRADA
+        cc.fecha_cierre = datetime.date.today()
+        cc.save(update_fields=['estado', 'fecha_cierre', 'updated_at'])
 
-    _registrar_cambio("Baja", motivo)
+    _registrar_cambio("Baja", f"Socio {socio.numero}: {motivo}", usuario=usuario)
+    recalcular_habilitados(socio_id=socio.pk)
     return socio
 
 
@@ -337,12 +348,14 @@ def dar_baja_socio(socio: Socios, motivo: str = "Baja Administrativa") -> Socios
 # ---------------------------------------------------------------------------
 
 @transaction.atomic
-def reactivar_socio(socio: Socios, motivo: str = "Reactivación administrativa") -> Socios:
+def reactivar_socio(socio: Socios, motivo: str = "Reactivación administrativa", usuario=None) -> Socios:
     """
     Reactiva un socio que estaba en BAJA.
     - Actualiza fechaAlta con la fecha de hoy
     - Reactiva (reabre) la CuentaCorriente si existe
     """
+    exigir_permiso(usuario, 'usuarios.puede_aprobar_socio')
+    socio = Socios.objects.select_for_update().get(pk=socio.pk)
     if not socio.esta_de_baja:
         raise ValidationError("Solo se puede reactivar un socio que esté de BAJA.")
 
@@ -350,15 +363,33 @@ def reactivar_socio(socio: Socios, motivo: str = "Reactivación administrativa")
     socio.fechaAlta = datetime.date.today()
     socio.save(update_fields=['activo', 'fechaAlta'])
 
-    # Reactivar la cuenta corriente si existe
-    try:
-        cc = socio.cuenta_corriente
-        cc.estado = CuentaCorriente.Estado.ACTIVA
-        cc.fecha_cierre = None
-        cc.save()
-    except CuentaCorriente.DoesNotExist:
-        # Si no tiene cuenta, crear una nueva
-        crear_cuenta_corriente_para_titular(socio)
+    crear_cuenta_corriente_para_titular(socio)
 
-    _registrar_cambio("Alta", f"[REACTIVACIÓN] Socio {socio.numero}: {motivo}")
+    _registrar_cambio("Alta", f"[REACTIVACIÓN] Socio {socio.numero}: {motivo}", usuario=usuario)
+    recalcular_habilitados(socio_id=socio.pk)
+    return socio
+
+
+@transaction.atomic
+def cambiar_tipo_cuota(socio: Socios, tipo_cuota: str, motivo: str, usuario=None) -> Socios:
+    """Directiva authorizes the tariff for future charges with a recorded reason."""
+    exigir_permiso(usuario, 'usuarios.puede_aprobar_socio')
+    opciones = dict(Socios._meta.get_field('tipo_cuota').choices)
+    if tipo_cuota not in opciones:
+        raise ValidationError('Seleccione un tipo de cuota válido.')
+    if not isinstance(motivo, str) or not motivo.strip() or len(motivo) > 500:
+        raise ValidationError('Indique un motivo de hasta 500 caracteres.')
+    socio = Socios.objects.select_for_update().get(pk=socio.pk)
+    # Match account closure / charge generation lock order.
+    list(CuentaCorriente.objects.select_for_update().filter(socio_titular=socio))
+    anterior = socio.tipo_cuota
+    if anterior == tipo_cuota:
+        raise ValidationError('El socio ya tiene ese tipo de cuota.')
+    socio.tipo_cuota = tipo_cuota
+    socio.save(update_fields=['tipo_cuota'])
+    _registrar_cambio(
+        'Alta', f'[TIPO CUOTA] Socio {socio.numero}: {anterior} → {tipo_cuota}. {motivo.strip()}',
+        usuario=usuario,
+    )
+    recalcular_habilitados(socio_id=socio.pk)
     return socio

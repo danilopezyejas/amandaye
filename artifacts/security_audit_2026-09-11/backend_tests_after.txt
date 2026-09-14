@@ -1,0 +1,41 @@
+Creating test database for alias 'default'...
+
+C:\Users\Danilo\socios_amandaye\.venv\Lib\site-packages\django\core\handlers\base.py:61: UserWarning: No directory at: C:\Users\Danilo\socios_amandaye\amandaye_backend\staticfiles\
+  mw_instance = middleware(adapted_handler)
+.2026-09-12 12:38:47,156 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:47,190 WARNING axes.handlers.database AXES: Repeated login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Updated existing record in the database.
+2026-09-12 12:38:47,225 WARNING axes.handlers.database AXES: Repeated login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Updated existing record in the database.
+2026-09-12 12:38:47,255 WARNING axes.handlers.database AXES: Repeated login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Updated existing record in the database.
+2026-09-12 12:38:47,287 WARNING axes.handlers.database AXES: Repeated login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Updated existing record in the database.
+2026-09-12 12:38:47,289 WARNING axes.handlers.database AXES: Locking out {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"} after repeated login failures.
+2026-09-12 12:38:47,290 WARNING amandaye.security authentication_locked
+2026-09-12 12:38:47,473 WARNING axes.handlers.database AXES: Repeated login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/login/"}. Updated existing record in the database.
+2026-09-12 12:38:47,480 WARNING axes.handlers.database AXES: Locking out {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/login/"} after repeated login failures.
+2026-09-12 12:38:47,488 WARNING amandaye.security authentication_locked
+2026-09-12 12:38:47,593 WARNING axes.handlers.database AXES: Repeated login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/admin/login/"}. Updated existing record in the database.
+2026-09-12 12:38:47,596 WARNING axes.handlers.database AXES: Locking out {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/admin/login/"} after repeated login failures.
+2026-09-12 12:38:47,596 WARNING amandaye.security authentication_locked
+.2026-09-12 12:38:47,640 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:47,688 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:47,755 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:47,781 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:47,819 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:47,823 WARNING axes.handlers.database AXES: Locking out {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"} after repeated login failures.
+2026-09-12 12:38:47,823 WARNING amandaye.security authentication_locked
+...2026-09-12 12:38:47,946 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:47,975 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:48,006 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:48,036 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:48,056 WARNING axes.handlers.database AXES: New login failure by {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"}. Created new record in the database.
+2026-09-12 12:38:48,060 WARNING axes.handlers.database AXES: Locking out {username: "********************", ip_address: "********************", user_agent: "********************", path_info: "/api/token/"} after repeated login failures.
+2026-09-12 12:38:48,061 WARNING amandaye.security authentication_locked
+...................................................Error al generar cuota para cuenta 1 (DatabaseError)
+..........................................ssss..
+----------------------------------------------------------------------
+Ran 104 tests in 28.013s
+
+OK (skipped=4)
+Destroying test database for alias 'default'...
+
+Found 104 test(s).
+System check identified no issues (0 silenced).

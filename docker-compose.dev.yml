@@ -1,0 +1,98 @@
+# Standalone local development; do not merge this file with production Compose.
+name: socios-amandaye-devsecure
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: [python, manage.py, runserver, "0.0.0.0:8000", --noreload]
+    environment:
+      AMANDAYE_SKIP_DOTENV: "1"
+      DJANGO_ENV: development
+      DJANGO_DEBUG: "1"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      TRUST_PROXY_HEADERS: "0"
+      SECRET_KEY_FILE: /run/secrets/django_secret_key
+      JWT_SIGNING_KEY_FILE: /run/secrets/jwt_signing_key
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_NAME: amandaye
+      DB_USER: amandaye_app
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_PRIVATE_NETWORK: "1"
+      REDIS_URL_FILE: /run/secrets/redis_url
+    secrets: [django_secret_key, jwt_signing_key, db_password, redis_url]
+    ports:
+      - "127.0.0.1:8000:8000"
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /app/amandaye_backend/staticfiles:uid=10001,gid=10001,mode=0755
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [local, database]
+
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: amandaye
+      MYSQL_USER: amandaye_app
+      MYSQL_PASSWORD_FILE: /run/secrets/db_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_ROOT_HOST: localhost
+    secrets: [db_password, db_root_password]
+    volumes:
+      - mysql_dev_secure_data:/var/lib/mysql
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, mysqladmin, ping, --host=127.0.0.1, --silent]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks: [database]
+
+  redis:
+    image: redis:8.2-alpine
+    command: [redis-server, /run/secrets/redis_config]
+    secrets: [redis_config, redis_password]
+    volumes:
+      - redis_dev_secure_data:/data
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [database]
+
+networks:
+  local:
+  database:
+    internal: true
+
+volumes:
+  mysql_dev_secure_data:
+  redis_dev_secure_data:
+
+secrets:
+  django_secret_key:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets/development}/django_secret_key
+  jwt_signing_key:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets/development}/jwt_signing_key
+  db_password:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets/development}/db_password
+  db_root_password:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets/development}/db_root_password
+  redis_password:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets/development}/redis_password
+  redis_config:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets/development}/redis_config
+  redis_url:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets/development}/redis_url

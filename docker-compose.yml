@@ -1,50 +1,131 @@
-version: "3.9"
+name: socios-amandaye-secure
 
 services:
+  gateway:
+    build:
+      context: .
+      dockerfile: docker/gateway/Dockerfile
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Configure el hostname publico sin esquema ni puerto}
+    ports:
+      - "80:8080"
+      - "443:8443"
+      - "443:8443/udp"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks: [edge, application]
+    restart: unless-stopped
+
   backend:
     build:
       context: .
       dockerfile: Dockerfile
-    command: python manage.py runserver 0.0.0.0:8000
-    working_dir: /app/amandaye_backend
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./amandaye_backend:/app/amandaye_backend
-    env_file:
-      - ./amandaye_backend/.env
     environment:
-      DJANGO_SETTINGS_MODULE: amandaye_backend.settings
+      AMANDAYE_SKIP_DOTENV: "1"
+      DJANGO_ENV: production
+      DJANGO_DEBUG: "0"
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?Configure el hostname publico permitido}
+      TRUST_PROXY_HEADERS: "1"
+      SECRET_KEY_FILE: /run/secrets/django_secret_key
+      JWT_SIGNING_KEY_FILE: /run/secrets/jwt_signing_key
       DB_HOST: db
       DB_PORT: "3306"
       DB_NAME: amandaye
-      DB_USER: root
-      DB_PASSWORD: ""
+      DB_USER: amandaye_app
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      DB_PRIVATE_NETWORK: "1"
+      REDIS_URL_FILE: /run/secrets/redis_url
+    secrets: [django_secret_key, jwt_signing_key, db_password, redis_url]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+      - /app/amandaye_backend/staticfiles:uid=10001,gid=10001,mode=0755
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
     depends_on:
-      - db
-
-  frontend:
-    image: node:20-alpine
-    working_dir: /usr/src/app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./amandaye_frontend:/usr/src/app
-    environment:
-      NODE_ENV: development
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python, -c, "import socket; socket.create_connection(('127.0.0.1', 8000), timeout=3).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks: [application, database]
+    restart: unless-stopped
 
   db:
-    image: mysql:8.0
-    command: --default-authentication-plugin=mysql_native_password
-    ports:
-      - "3307:3306"
+    image: mysql:8.4
     environment:
-      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: amandaye
+      MYSQL_USER: amandaye_app
+      MYSQL_PASSWORD_FILE: /run/secrets/db_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
+      MYSQL_ROOT_HOST: localhost
+    secrets: [db_password, db_root_password]
     volumes:
-      - mysql_data:/var/lib/mysql
-      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+      - mysql_secure_data:/var/lib/mysql
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, mysqladmin, ping, --host=127.0.0.1, --silent]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    networks: [database]
+    restart: unless-stopped
+
+  redis:
+    image: redis:8.2-alpine
+    command: [redis-server, /run/secrets/redis_config]
+    secrets: [redis_config, redis_password]
+    volumes:
+      - redis_secure_data:/data
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [database]
+    restart: unless-stopped
+
+networks:
+  edge:
+  application:
+    internal: true
+  database:
+    internal: true
 
 volumes:
-  mysql_data:
+  mysql_secure_data:
+  redis_secure_data:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  django_secret_key:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets}/django_secret_key
+  jwt_signing_key:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets}/jwt_signing_key
+  db_password:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets}/db_password
+  db_root_password:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets}/db_root_password
+  redis_password:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets}/redis_password
+  redis_config:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets}/redis_config
+  redis_url:
+    file: ${AMANDAYE_SECRETS_DIR:-./secrets}/redis_url

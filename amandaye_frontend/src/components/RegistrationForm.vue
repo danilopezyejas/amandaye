@@ -228,7 +228,7 @@
 
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { api } from '../api/axios'
+import { publicApi } from '../api/axios'
 
 const emit = defineEmits(['close'])
 
@@ -319,13 +319,12 @@ const submitForm = async () => {
     }
 
     // Call API using our axios instance
-    await api.post('/socios/solicitudes/', payload)
+    await publicApi.post('socios/solicitudes/', payload)
 
     // Success -> Go to Final View Step 5
     step.value = 5
 
   } catch (error) {
-    console.error("Error creating application:", error)
     if (error.response?.data?.error) {
       apiError.value = error.response.data.error
     } else if (error.response?.data) {
@@ -346,5 +345,4 @@ const submitForm = async () => {
   }
 }
 </script>
-
 

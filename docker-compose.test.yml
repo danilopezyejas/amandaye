@@ -1,0 +1,41 @@
+# Disposable synthetic data only. No published ports or persistent data volumes.
+name: socios-amandaye-security-tests
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: test_amandaye_security
+      MYSQL_USER: synthetic_test_runner
+      MYSQL_PASSWORD: synthetic-disposable-test-password
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+    tmpfs:
+      - /var/lib/mysql
+    networks: [tests]
+    healthcheck:
+      test: [CMD, mysqladmin, ping, --host=127.0.0.1, --silent]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      TEST_MYSQL_HOST: mysql
+      TEST_MYSQL_DATABASE: test_amandaye_security
+      TEST_MYSQL_USER: synthetic_test_runner
+      TEST_MYSQL_PASSWORD: synthetic-disposable-test-password
+    command: [python, manage.py, test, --settings=amandaye_backend.settings_test_mysql, --keepdb, --noinput, -v2]
+    read_only: true
+    tmpfs:
+      - /tmp:mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks: [tests]
+networks:
+  tests:
+    internal: true

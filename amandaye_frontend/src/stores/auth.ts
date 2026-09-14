@@ -20,8 +20,7 @@ export const useAuthStore = defineStore('auth', () => {
         if (!accessToken.value) return null
         try {
             return jwtDecode<UserTokenPayload>(accessToken.value)
-        } catch (error) {
-            console.error('Invalid token', error)
+        } catch {
             return null
         }
     })

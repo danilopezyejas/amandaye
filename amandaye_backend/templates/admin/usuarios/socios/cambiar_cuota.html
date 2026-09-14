@@ -1,0 +1,19 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div id="content-main">
+  <p>El tipo de cuota se aplicará a los próximos cargos de los {{ queryset|length }} socios seleccionados.</p>
+  <form method="post">
+    {% csrf_token %}
+    <fieldset class="module aligned">{{ form.as_p }}</fieldset>
+    {% for socio in queryset %}
+      <input type="hidden" name="{{ action_checkbox_name }}" value="{{ socio.pk }}">
+    {% endfor %}
+    <input type="hidden" name="action" value="cambiar_cuota_socios_seleccionados">
+    <input type="hidden" name="confirmar_cuota" value="1">
+    <div class="submit-row">
+      <input type="submit" class="default" value="Guardar cambio de cuota">
+      <a href="{% url 'admin:usuarios_socios_changelist' %}" class="button">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

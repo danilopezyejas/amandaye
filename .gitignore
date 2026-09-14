@@ -1,1 +1,15 @@
 venv/
+.venv/
+**/__pycache__/
+**/*.py[cod]
+**/node_modules/
+**/dist/
+**/staticfiles/
+**/.env
+**/.env.*
+!**/.env.example
+**/*.sqlite3
+/docker/mysql/init/amandaye.sql
+/.local/
+/secrets/
+*.log

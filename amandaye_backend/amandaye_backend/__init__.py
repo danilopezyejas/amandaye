@@ -1,2 +1,1 @@
-import pymysql
-pymysql.install_as_MySQLdb()
+"""Django backend using the supported mysqlclient database adapter."""

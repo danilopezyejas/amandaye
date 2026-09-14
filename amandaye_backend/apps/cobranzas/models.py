@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.db import models
 from django.db.models import Sum
+from django.conf import settings
 from apps.usuarios.models import Socios
 
 class CuentaCorriente(models.Model):
@@ -63,6 +64,9 @@ class Cargo(models.Model):
     importe = models.DecimalField(max_digits=10, decimal_places=2)
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE)
     observaciones = models.TextField(null=True, blank=True)
+    registrado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='cargos_registrados')
+    anulado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='cargos_anulados')
+    fecha_anulacion = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')
 
@@ -140,12 +144,13 @@ class AplicacionPago(models.Model):
         ACTIVA = 'ACTIVA', 'Activa'
         REVERTIDA = 'REVERTIDA', 'Revertida'
 
-    pago = models.ForeignKey(Pago, on_delete=models.CASCADE, related_name='aplicaciones')
+    pago = models.ForeignKey(Pago, on_delete=models.PROTECT, related_name='aplicaciones')
     cargo = models.ForeignKey(Cargo, on_delete=models.PROTECT, related_name='aplicaciones')
     importe_aplicado = models.DecimalField(max_digits=10, decimal_places=2)
     estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ACTIVA, verbose_name='Estado')
     fecha_reversion = models.DateTimeField(null=True, blank=True, verbose_name='Fecha de reversión')
     motivo_reversion = models.TextField(null=True, blank=True, verbose_name='Motivo de reversión')
+    revertido_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='aplicaciones_revertidas')
     registrado_por = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="Registrado por", related_name="aplicaciones_registradas")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Última actualización')

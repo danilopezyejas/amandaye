@@ -1,7 +1,7 @@
 import datetime
 from django.utils import timezone
 from apps.usuarios.models import Personas, Socios
-from apps.cobranzas.models import Cargo
+from apps.cobranzas.models import Cargo, CuentaCorriente
 
 def _calcular_edad(fecha_nacimiento: datetime.date, hoy: datetime.date) -> int:
     if not fecha_nacimiento:
@@ -40,8 +40,8 @@ def _calcular_estado_individual(persona, socio, hoy) -> str:
                 todos_adeudados = all(c.estado in [Cargo.Estado.PENDIENTE, Cargo.Estado.PARCIAL] for c in cargos_en_periodos)
                 if todos_adeudados:
                     return 'SUSPENDIDO'
-    except Exception:
-        pass
+    except CuentaCorriente.DoesNotExist:
+        pass  # A pending application may not have an account yet.
 
     # 3. Habilitado
     cond_a = socio.activo == 1
