@@ -7,7 +7,7 @@ Gestión de socios, solicitudes, cuentas corrientes y cobranzas con Django 5.2 L
 Seguir [Despliegue y desarrollo](docs/DEPLOYMENT.md). Incluye creación de secretos, instalación nueva, migración de datos anteriores y comandos de desarrollo.
 
 - Producción: `docker-compose.yml`, Gunicorn y frontend compilado detrás de Caddy con HTTPS; MySQL 8.4 y Redis permanecen en redes internas.
-- Desarrollo: `docker-compose.dev.yml` independiente, backend en `127.0.0.1:8000` y Vite local. Requiere Docker con contenedores Linux y Node 24, o una versión compatible con `amandaye_frontend/package.json`.
+- Desarrollo: `docker-compose.dev.yml` independiente, backend en `127.0.0.1:8000` y frontend en `127.0.0.1:5173`. Docker incluye Python 3.12 y Node 24; también se puede ejecutar Vite de forma nativa según la guía.
 - Secretos: `python scripts/bootstrap_secrets.py` con Python 3.12. El generador conserva las credenciales existentes. Las configuraciones inseguras anteriores ya no permiten iniciar el backend.
 
 Los comandos no importan el SQL anterior ni modifican automáticamente una base existente. La migración y la provisión de usuarios se ejecutan expresamente según la guía.

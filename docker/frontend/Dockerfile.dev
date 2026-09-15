@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+FROM node:24-alpine AS dependencies
+WORKDIR /build
+COPY amandaye_frontend/package.json amandaye_frontend/package-lock.json ./
+RUN npm ci --ignore-scripts
+
+FROM node:24-alpine AS development
+WORKDIR /app/frontend
+COPY --from=dependencies /build/node_modules ./node_modules
+COPY amandaye_frontend/ ./
+RUN npm test && npm run build
+ENV NODE_ENV=development \
+    AMANDAYE_VITE_CACHE_DIR=/tmp/amandaye-vite
+USER node
+EXPOSE 5173
+# The container listens internally; Compose publishes this port only on host loopback.
+CMD ["node", "node_modules/vite/bin/vite.js", "--configLoader", "runner", "--host", "0.0.0.0", "--port", "5173"]

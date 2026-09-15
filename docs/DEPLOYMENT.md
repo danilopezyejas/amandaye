@@ -64,23 +64,38 @@ Después de restaurar una copia: ejecutar `migrate --plan`, revisar el plan y lu
 
 ## Desarrollo local
 
-`docker-compose.dev.yml` es independiente: usarlo solo con `-f`, sin combinarlo con el archivo de producción. Crea otra base vacía y publica únicamente el backend en `127.0.0.1:8000`. `DJANGO_ENV=development` y DEBUG se habilitan explícitamente. No hay dump ni bind mount del directorio con datos locales.
+`docker-compose.dev.yml` es independiente: usarlo solo con `-f`, sin combinarlo con el archivo de producción. Incluye backend Python 3.12 y frontend Node 24, publicados únicamente en `127.0.0.1:8000` y `127.0.0.1:5173`. MySQL y Redis no publican puertos. `DJANGO_ENV=development` y DEBUG se habilitan explícitamente. El frontend ejecuta Vite sin root, con límite de memoria y caché temporal; no monta secretos ni carpetas del host. El código se copia durante el build.
+
+Para una instalación nueva, desde la raíz del proyecto y usando la misma cuenta que ejecuta Docker Desktop:
 
 ```powershell
-py -3.12 scripts/bootstrap_secrets.py --directory secrets/development
+$env:AMANDAYE_SECRETS_DIR = (Join-Path (Get-Location) 'secrets/development')
+.\.venv\Scripts\python.exe scripts/bootstrap_secrets.py --directory secrets/development
 docker compose -f docker-compose.dev.yml config --quiet
 docker compose -f docker-compose.dev.yml build --pull
 docker compose -f docker-compose.dev.yml up -d db redis
 docker compose -f docker-compose.dev.yml run --rm backend python manage.py migrate --noinput
 docker compose -f docker-compose.dev.yml run --rm backend python manage.py setup_roles
 docker compose -f docker-compose.dev.yml run --rm backend python manage.py createsuperuser
-docker compose -f docker-compose.dev.yml up -d backend
-Set-Location amandaye_frontend
-npm ci --ignore-scripts
-npm run dev
+docker compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml ps
 ```
 
-Abrir `http://127.0.0.1:5173`. Vite escucha solo en loopback y deriva `/api/`, `/login/`, `/admin/`, `/apps/` y `/static/` al backend local. Usa Node 24 o una versión compatible indicada en `package.json`. Reconstruir el servicio backend después de cambiar código con `docker compose -f docker-compose.dev.yml up -d --build backend`. No usar Vite, `vite preview` ni `runserver` para publicar el servicio en Internet. Si `AMANDAYE_SECRETS_DIR` quedó definido para producción en la terminal, retirarlo antes de iniciar desarrollo para usar `secrets/development`.
+Si no existe `.venv`, usar un intérprete Python 3.12 instalado, por ejemplo `py -3.12`; el generador utiliza solo la biblioteca estándar. Al restaurar una base anterior, omitir `createsuperuser` si ya contiene los usuarios necesarios. No ejecutar las migraciones de esta secuencia sobre una base vacía antes de restaurar un dump con esquema: seguir el procedimiento de recuperación siguiente.
+
+Abrir `http://127.0.0.1:5173`. Dentro de Docker, Vite deriva `/api/`, `/login/`, `/admin/`, `/apps/` y `/static/` a `http://backend:8000`. `AMANDAYE_DEV_API_TARGET` es configuración confiable del servidor Vite y no se publica como variable del navegador. El puerto del contenedor escucha internamente en todas sus interfaces, pero Compose lo publica solo en loopback del host. Reconstruir tras cambiar código con `docker compose -f docker-compose.dev.yml up -d --build backend frontend`. No usar Vite, `vite preview` ni `runserver` para publicar el servicio en Internet.
+
+También se puede ejecutar el frontend de forma nativa con Node 24: dejar detenido el servicio `frontend`, entrar en `amandaye_frontend`, ejecutar `npm ci --ignore-scripts` y `npm run dev`. Sin `AMANDAYE_DEV_API_TARGET`, Vite mantiene su escucha en `127.0.0.1` y usa `http://127.0.0.1:8000` como destino. No iniciar simultáneamente ambos frontends en el puerto 5173.
+
+### Recuperar un entorno antiguo que falla por SECRET_KEY
+
+El error `Configure SECRET_KEY or SECRET_KEY_FILE` en un contenedor Python 3.9 indica que el contenedor anterior está leyendo la configuración nueva sin recibir los secretos ni las dependencias actualizadas. Reiniciarlo no reemplaza su imagen, variables ni montajes. El frontend Node 20 anterior tampoco puede usar `127.0.0.1:8000` para alcanzar otro contenedor: esa dirección apunta a sí mismo.
+
+1. Identificar los contenedores y el volumen MySQL antiguos. Detener únicamente sus servicios web para liberar 8000/5173 y evitar nuevas escrituras; conservar la base y el volumen. No ejecutar `down -v` ni borrar volúmenes.
+2. Guardar y verificar una copia lógica del esquema de aplicación y sus datos desde MySQL 8.0. No copiar tablas de sistema, usuarios ni permisos globales. Conservar el original como respaldo.
+3. Preparar los secretos de desarrollo y construir las imágenes nuevas con los comandos anteriores. Arrancar únicamente `db redis`; el proyecto `socios-amandaye-devsecure` usa el volumen nuevo `mysql_dev_secure_data`. No montar el directorio de datos MySQL 8.0 directamente en MySQL 8.4.
+4. Restaurar la copia lógica en la base nueva, revisar `migrate --plan` y ejecutar `migrate --noinput` y `setup_roles`. Validar recuentos de socios y movimientos, saldos y permisos antes de continuar. Los archivos de secretos no cambian las contraseñas de una base previamente inicializada.
+5. Arrancar el nuevo entorno con `docker compose -f docker-compose.dev.yml up -d --force-recreate`. Comprobar acceso en `http://127.0.0.1:5173` y `/login/`, además de las operaciones autorizadas. El volumen original debe permanecer conservado hasta verificar la recuperación y su copia de seguridad.
 
 ## Comprobaciones antes de abrir tráfico
 
