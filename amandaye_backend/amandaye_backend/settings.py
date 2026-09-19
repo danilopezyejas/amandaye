@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "rest_framework", "rest_framework_simplejwt", "rest_framework_simplejwt.token_blacklist",
     "corsheaders", "axes", "amandaye_backend.security.apps.SecurityConfig",
     "apps.alertas", "apps.brevet", "apps.horarios", "apps.usuarios", "apps.cobranzas",
+    "apps.conditions.apps.ConditionsConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware", "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -140,7 +141,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework_simplejwt.authentication.JWTAuthentication",),
     "DEFAULT_PERMISSION_CLASSES": ("apps.usuarios.permissions.ClubPermissions",),
     "DEFAULT_THROTTLE_CLASSES": ("rest_framework.throttling.ScopedRateThrottle",),
-    "DEFAULT_THROTTLE_RATES": {"solicitudes": "5/hour", "login": "10/minute", "refresh": "30/minute"},
+    "DEFAULT_THROTTLE_RATES": {"solicitudes": "5/hour", "login": "10/minute", "refresh": "30/minute", "conditions": "60/minute"},
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination", "PAGE_SIZE": 50,
     "NUM_PROXIES": 1 if TRUST_PROXY_HEADERS else 0,
     "EXCEPTION_HANDLER": "amandaye_backend.security.exceptions.exception_handler",
@@ -157,6 +158,11 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "security"}},
     "loggers": {
         "amandaye.security": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "amandaye.conditions": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "axes": {"handlers": ["console"], "level": "WARNING", "propagate": False},
     },
 }
+
+from apps.conditions.config import environment_settings
+
+CONDITIONS = environment_settings()

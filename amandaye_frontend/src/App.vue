@@ -68,6 +68,13 @@
                 <div class="absolute -inset-3 rounded-full bg-orange-400 opacity-20 group-hover:opacity-40 blur-lg transition-opacity duration-200"></div>
               </button>
               <p class="mt-4 text-sm text-blue-300 font-medium">¡Primera clase de prueba gratis!</p>
+              <RouterLink
+                to="/condiciones-del-rio"
+                class="btn-secondary inline-flex items-center gap-2 mt-6 min-h-11 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-400"
+              >
+                <svg aria-hidden="true" class="w-5 h-5 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path stroke-linecap="round" d="M3 8h12a3 3 0 1 0-3-3M3 12h16a2 2 0 1 1-2 2M3 16h7a3 3 0 1 1-3 3" /></svg>
+                Condiciones del río
+              </RouterLink>
             </div>
           </div>
 

@@ -44,6 +44,21 @@ services:
       DB_PASSWORD_FILE: /run/secrets/db_password
       DB_PRIVATE_NETWORK: "1"
       REDIS_URL_FILE: /run/secrets/redis_url
+      ECOWITT_APPLICATION_KEY: ${ECOWITT_APPLICATION_KEY:-}
+      ECOWITT_API_KEY: ${ECOWITT_API_KEY:-}
+      ECOWITT_MAC: ${ECOWITT_MAC:-}
+      WUNDERGROUND_API_KEY: ${WUNDERGROUND_API_KEY:-}
+      CONDITIONS_STALE_MINUTES: ${CONDITIONS_STALE_MINUTES:-20}
+      CONDITIONS_OBSERVATION_CACHE_SECONDS: ${CONDITIONS_OBSERVATION_CACHE_SECONDS:-300}
+      CONDITIONS_FORECAST_CACHE_SECONDS: ${CONDITIONS_FORECAST_CACHE_SECONDS:-900}
+      CONDITIONS_FALLBACK_CACHE_SECONDS: ${CONDITIONS_FALLBACK_CACHE_SECONDS:-3600}
+      CONDITIONS_EXTERNAL_TIMEOUT_SECONDS: ${CONDITIONS_EXTERNAL_TIMEOUT_SECONDS:-5}
+      CONDITIONS_LATITUDE: ${CONDITIONS_LATITUDE:--32.3027}
+      CONDITIONS_LONGITUDE: ${CONDITIONS_LONGITUDE:--58.0904}
+      CONDITIONS_WIND_DIFFERENCE_KMH: ${CONDITIONS_WIND_DIFFERENCE_KMH:-10}
+      CONDITIONS_GUST_DIFFERENCE_KMH: ${CONDITIONS_GUST_DIFFERENCE_KMH:-15}
+      CONDITIONS_TEMPERATURE_DIFFERENCE_C: ${CONDITIONS_TEMPERATURE_DIFFERENCE_C:-3}
+      CONDITIONS_PRESSURE_DIFFERENCE_HPA: ${CONDITIONS_PRESSURE_DIFFERENCE_HPA:-5}
     secrets: [django_secret_key, jwt_signing_key, db_password, redis_url]
     read_only: true
     tmpfs:
@@ -62,7 +77,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 60s
-    networks: [application, database]
+    networks: [application, database, conditions_egress]
     restart: unless-stopped
 
   db:
@@ -103,6 +118,8 @@ services:
 
 networks:
   edge:
+  # Outbound provider HTTPS; no published backend ports. DB/Redis stay internal.
+  conditions_egress:
   application:
     internal: true
   database:

@@ -17,6 +17,7 @@ urlpatterns = [
     path("", home), path("login/", admin.site.login, name="login"), path("admin/", admin.site.urls),
     path("api/token/", LoginView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", RefreshView.as_view(), name="token_refresh"),
+    path("api/conditions/", include("apps.conditions.urls")),
     path("apps/alertas/", include("apps.alertas.urls")),
     path("api/usuarios/", include("apps.usuarios.urls")),
     path("api/", include("apps.usuarios.api_urls")),

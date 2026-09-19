@@ -38,6 +38,8 @@ La configuración de pruebas usa credenciales sintéticas y SQLite en memoria: n
 - `amandaye_backend/amandaye_backend/security/`: bloqueo de login, respuestas seguras y pruebas de configuración.
 - `amandaye_frontend/src/`: interfaz Vue, transporte autenticado y formularios.
 - `docker/`, `scripts/`, `docs/`: ejecución y operación.
+- `amandaye_backend/apps/conditions/`: observaciones locales, consolidación y pronóstico;
+  [configuración, API y pruebas](docs/CONDITIONS.md). Página `/condiciones-del-rio`.
 
 Los movimientos financieros se realizan mediante servicios transaccionales que verifican al operador. Los importes y los vínculos de movimientos existentes no se editan ni se eliminan desde formularios genéricos; las reversiones y anulaciones conservan auditoría. Directiva controla las transiciones de socios y los ajustes de cuota.
 
