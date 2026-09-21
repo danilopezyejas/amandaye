@@ -79,6 +79,28 @@ Git 2.36.1 en sandbox rechaza ownership; ejecutar lecturas y commit con revisió
 de aprobación `require_escalated` y alcance exacto. Reintento autorizado ya funciona.
 No cambiar safe.directory global. Hubo interrupciones por cuota, no por problemas del código.
 
+## Actualización del entorno local (2026-09-21)
+
+El usuario no veía el enlace porque Docker seguía sirviendo las imágenes anteriores.
+Se activaron las imágenes actualizadas de frontend y backend en el Compose de desarrollo.
+La portada servida contiene `/condiciones-del-rio`; la página y `/api/conditions/`
+responden HTTP 200. Acceso: `http://localhost:5173/condiciones-del-rio`.
+El enlace está debajo de «¡Primera clase de prueba gratis!» en la portada.
+Si el navegador conserva la sesión anterior, recargar con Ctrl+F5.
+
+La reconstrucción estándar encontró timeout TLS del registro Docker. Se verificó
+igualdad SHA256 de requirements.txt, package.json y package-lock.json con las imágenes
+existentes y se reutilizaron esas dependencias mediante Dockerfiles temporales en
+`.local/conditions-update.*.Dockerfile`, con `--network=none` y `--pull=false`.
+Pasaron las 62 pruebas del módulo backend y las 28 del frontend durante esa construcción.
+Imágenes anteriores conservadas con tag `pre-conditions`. Imágenes activadas:
+frontend `1b379b3bba9b`, backend `f6201afd1caf`; usuarios `node` y `app` conservados.
+Se arrancaron los contenedores existentes de MySQL/Redis, sin recrearlos ni migrar datos;
+se recrearon solo frontend/backend con `up -d --no-build --no-deps`.
+La verificación HTTP desde Windows confirmó portada, página y API con HTTP 200,
+enlace presente y pronóstico disponible. Las dos estaciones devuelven `not_configured`,
+por las credenciales todavía pendientes; no se inventaron datos ni se configuraron claves.
+
 ## Herramientas/comandos
 
 Usar PowerShell `login:false`: perfil por defecto quedó colgado. Algunas sesiones
