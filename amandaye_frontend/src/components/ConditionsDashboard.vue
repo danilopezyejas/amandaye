@@ -145,6 +145,7 @@
           <article v-for="source in data.weather.sources" :key="source.id" class="rounded-2xl border border-white/10 bg-white/5 p-4">
             <h3 class="font-bold">{{ source.name }}</h3>
             <p class="mt-1 text-xs text-blue-200">Fuente: {{ source.provider === 'ecowitt' ? 'Ecowitt' : source.provider === 'wunderground' ? 'Weather Underground' : source.provider }}</p>
+            <p v-if="source.access_method === 'public_page'" class="mt-1 text-xs text-blue-200">Datos obtenidos de la página pública</p>
             <template v-if="source.available">
               <p v-if="source.last_known" class="mt-3 text-sm text-orange-200">Últimos datos disponibles · La fuente no pudo actualizarse.</p>
               <p v-if="current?.station_ids.includes(source.id)" class="mt-3 text-xs text-blue-100">Utilizada en las condiciones actuales</p>
@@ -156,7 +157,7 @@
                 <div v-for="metric in stationMeasurements(source)" :key="metric.label" class="flex justify-between gap-3"><dt class="text-blue-200">{{ metric.label }}</dt><dd class="text-right font-semibold tabular-nums">{{ metric.value }}</dd></div>
               </dl>
             </template>
-            <p v-else class="mt-4 text-sm text-blue-100">Datos temporalmente no disponibles</p>
+            <p v-else class="mt-4 text-sm text-blue-100">{{ source.error === 'station_offline' ? 'La estación figura fuera de línea en la fuente pública' : 'Datos temporalmente no disponibles' }}</p>
             <a :href="source.source_url" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex min-h-11 items-center rounded-lg text-xs font-medium text-blue-200 underline underline-offset-4 hover:text-orange-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400">Ver fuente pública<span class="sr-only">: {{ source.name }} (abre en otra pestaña)</span></a>
           </article>
         </div>

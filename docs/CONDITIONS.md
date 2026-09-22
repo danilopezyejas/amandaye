@@ -35,9 +35,56 @@ Los contratos se investigaron antes de implementarlos. Ver
 | Pronóstico / Open-Meteo | `GET https://api.open-meteo.com/v1/forecast`, hourly + daily, métricas, Unix, `America/Montevideo` | Ninguna clave para su servicio público de uso no comercial |
 
 `PHC0G3` corresponde al enlace compartido Ecowitt: no es una MAC, API key ni device ID.
-No se extraen claves de dashboards ni se realiza scraping HTML. Una estación sin
-configurar devuelve `not_configured`; el resto de las fuentes continúa funcionando.
 No se pudo validar una lectura autenticada de las estaciones sin sus credenciales.
+
+### Rama provisional de scraping
+
+La rama `codex/condiciones-rio-scraping` agrega lectura de las páginas públicas,
+solicitada mientras se consiguen las credenciales. `CONDITIONS_STATION_MODE` admite:
+
+- `auto` (predeterminado en esta rama): usa la API de cada estación cuando tiene
+  todas sus credenciales; de lo contrario usa su página pública.
+- `api`: conserva el comportamiento original; sin claves devuelve `not_configured`.
+- `public_page`: fuerza la lectura pública para ambas estaciones.
+
+Una API configurada que falla no cambia silenciosamente a scraping. Las cachés de
+API y página pública son independientes. La conmutación de configuración requiere
+reiniciar el backend; con Compose, recrearlo para actualizar su entorno.
+
+**Ecowitt:** consulta por POST los endpoints públicos de lectura
+`https://www.ecowitt.net/index/get_device_list` (`authorize=PHC0G3`) y
+`https://www.ecowitt.net/index/home` (`authorize` y `device_id` descubierto en la
+respuesta anterior). Son las consultas del dashboard compartido. No se fija un MAC
+ni se inventa un identificador. Si el enlace comparte más de una estación, se rechaza
+la selección ambigua. Se normalizan los campos de exterior, viento, presión relativa
+y lluvia; los máximos diarios y la temperatura interior no son mediciones actuales.
+
+Las horas `Today HH:MM` de Ecowitt se resuelven con `Date` de la respuesta HTTP y
+`UTC_offset` de la estación. Se conserva la precisión de minuto y la hora de cada
+sensor. Una hora sin fecha interpretable se descarta; nunca se reemplaza por la hora
+de consulta. Se contemplan coma decimal y separadores de miles del dashboard.
+
+**Weather Underground:** descarga el HTML de
+`https://www.wunderground.com/dashboard/pws/IPAYSA15` y lee los atributos del estado
+de la estación y de sus widgets meteorológicos. También reconoce la variante Angular:
+lee el JSON `app-root-state` y acepta únicamente las observaciones embebidas del
+endpoint de condiciones actuales de `IPAYSA15`; nunca hace consultas a las URLs
+contenidas en ese bloque. El registro `pwsidentity` permite reconocer una estación
+inactiva cuando el HTML no incluye observaciones. Verifica identidad, unidades y fecha
+explícita, incluyendo el formato `Date.toString()` del servidor. Reconoce `offline`
+como `station_offline`; no toma valores de tablas históricas. El acumulado diario
+no se transforma en lluvia horaria. No extrae ni reutiliza API keys del sitio.
+
+Ambos adaptadores usan solo la biblioteca estándar Python, con límite de respuesta
+de 2 MiB, timeout y sin seguir redirecciones ni ejecutar JavaScript. Reutilizan caché,
+consolidación, antigüedad y manejo de fallos. Las fuentes agregan `access_method`
+(`api` o `public_page`) y Ecowitt público agrega `timestamp_precision=minute`.
+El frontend indica la procedencia pública en el detalle de las estaciones.
+
+Limitación: estos contratos públicos no son API estable; cambios de HTML, idioma,
+unidades, restricciones o revocación del enlace pueden dejar una fuente sin datos.
+El pronóstico permanece independiente. Las API oficiales siguen siendo el destino
+para la integración definitiva.
 
 ## Configuración
 
@@ -48,6 +95,7 @@ configuración existente de Django; no sustituye sus secretos ni la configuraci�
 | Variable | Predeterminado |
 |---|---|
 | `ECOWITT_APPLICATION_KEY`, `ECOWITT_API_KEY`, `ECOWITT_MAC`, `WUNDERGROUND_API_KEY` | Vacías |
+| `CONDITIONS_STATION_MODE` | `auto` en la rama provisional; `api` deshabilita scraping |
 | `CONDITIONS_STALE_MINUTES` | 20 |
 | `CONDITIONS_OBSERVATION_CACHE_SECONDS` | 300 |
 | `CONDITIONS_FORECAST_CACHE_SECONDS` | 900 |
@@ -75,7 +123,8 @@ Evitar `docker compose config` sin `--quiet` cuando haya secretos en variables.
 
 Producción agrega `conditions_egress` para HTTPS saliente del backend. No publica
 puertos nuevos: MySQL y Redis conservan su red interna. Si hay firewall externo,
-permitir DNS y HTTPS hacia los tres hosts oficiales anteriores.
+permitir DNS y HTTPS hacia los tres hosts oficiales anteriores y, para el modo
+público, `www.ecowitt.net` y `www.wunderground.com`.
 
 ## Endpoints y contrato
 
@@ -148,7 +197,8 @@ un proceso demorado borre el bloqueo de otro; LocMem coordina solo dentro de un 
 Los tres proveedores se consultan concurrentemente y sus fallos se aíslan.
 El timeout limita las operaciones de socket; no es una garantía de plazo total ante
 problemas del resolvedor DNS o respuestas que lleguen muy lentamente por fragmentos.
-JSON está limitado a 1 MiB, se validan tipos/unidades/rangos y no se siguen redirecciones.
+Las respuestas de las API están limitadas a 1 MiB y las páginas públicas a 2 MiB;
+se validan tipos/unidades/rangos y no se siguen redirecciones.
 
 ## Actualización y PWA
 
@@ -186,6 +236,8 @@ Los tests externos usan mocks y no requieren Internet. Backend cubre conversione
 normalización, timestamp, dirección, consolidación, proveedores, pronóstico, HTTP,
 errores y caché/concurrencia. Frontend usa el runner Node existente para presentación,
 render SSR y ciclo de refresco/visibilidad/cancelación, sin agregar dependencias.
+La rama provisional agrega `services/scraping.py` y `test_scraping.py`, con 30 pruebas
+de formato público, fechas, unidades, fuente offline, transporte y selección API/página.
 No hay script de lint en el proyecto. `build` incluye `tsc`; `vue-tsc` revisa los SFC.
 En el aislamiento Windows de herramientas, Vite puede requerir
 `node node_modules/vite/bin/vite.js build --configLoader runner` después de `tsc` por

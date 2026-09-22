@@ -11,7 +11,7 @@ from ..aggregation import consolidate_weather
 from ..normalization import unavailable_station
 from .forecast import fetch_forecast, present_forecast, unavailable_forecast
 from .http import ProviderError
-from .weather import fetch_ecowitt, fetch_wunderground
+from .weather import fetch_ecowitt, fetch_wunderground, station_access_method
 
 logger = logging.getLogger("amandaye.conditions")
 
@@ -45,8 +45,10 @@ def cached_source(key, loader, unavailable, ttl, *, provider, station="forecast"
 
 
 def _station(station_id, provider, loader):
+    method = station_access_method(station_id)
     return cached_source(
-        station_id, loader, lambda error: unavailable_station(station_id, error),
+        f"{station_id}:{method}", loader,
+        lambda error: {**unavailable_station(station_id, error), "access_method": method},
         settings.CONDITIONS["observation_cache_seconds"], provider=provider, station=station_id,
     )
 

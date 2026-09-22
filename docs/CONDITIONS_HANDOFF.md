@@ -1,5 +1,64 @@
 # Traspaso — Condiciones del río
 
+## Rama de scraping provisional — 2026-09-22
+
+Pedido posterior del usuario: crear una rama y hacer scraping de ambas estaciones
+mientras consigue las credenciales. Rama activa: `codex/condiciones-rio-scraping`,
+creada desde `master` (`5de4349`). No se hizo push ni despliegue en producción.
+
+Implementación:
+
+- `services/scraping.py`: Ecowitt mediante las dos consultas POST de lectura del
+  dashboard compartido; WU mediante atributos HTML y JSON de estado Angular.
+- Ecowitt descubre el device ID usando solo `PHC0G3`. Verificadas mediciones reales
+  recientes; normaliza comas/miles, unidades y fecha por sensor con HTTP Date y
+  UTC_offset. Precisión de minuto, sin reemplazar fecha por momento de consulta.
+- WU alterna dos versiones del HTML. Se inspeccionaron ambas; `IPAYSA15` figura
+  offline. La variante Angular confirmó `isRecent=false` y última actualización
+  de identidad `2026-09-20T23:50:55Z`. No convertir esa fecha de identidad en una
+  observación ni usar historial para llenar condiciones actuales. No se validó una
+  medición real online del Yacht; los casos con datos usan fixtures sintéticos.
+- No se extraen claves del HTML, no se ejecuta JS remoto, no se consultan URLs
+  extraídas del estado Angular. Ese estado tiene otros datos/configuración que no
+  deben imprimirse ni guardarse en Git. Archivos de investigación en `.local/`.
+- `CONDITIONS_STATION_MODE=auto` predeterminado de esta rama: por estación, API si
+  tiene todas sus credenciales y página pública si faltan. `api` desactiva scraping;
+  `public_page` lo fuerza. No hay fallback silencioso cuando una API configurada falla.
+- Se conservan contrato, caché, consolidación, pronóstico y control de antigüedad.
+  La caché de observaciones discrimina API/página pública; el frontend muestra la
+  procedencia pública y distingue una estación offline.
+- Sin dependencias nuevas, modelos ni migraciones; límites de respuesta y timeout.
+- Documentación técnica y referencias actualizadas en CONDITIONS.md/SOURCES.md.
+
+Verificado hasta aquí:
+
+- 92 pruebas de conditions OK en Windows; 196 pruebas backend completas OK en
+  imagen Linux (4 omitidas por requerir MySQL); 30 pruebas nuevas de scraping.
+- Frontend: 28 tests, vue-tsc y build Vite OK en Windows; tests y build estándar
+  también OK en la imagen Linux.
+- Compose dev/producción válidos; usar SITE_ADDRESS y DJANGO_ALLOWED_HOSTS con
+  hostname ficticio solo para validar producción, sin iniciarla.
+- HTTP local final: portada, `/condiciones-del-rio` y `/api/conditions/` respondieron
+  200. Frontend servido contiene la etiqueta de página pública. API: una estación
+  reciente (`pescadores`, `public_page`), Yacht `station_offline` y pronóstico disponible.
+  La observación Ecowitt conservó `2026-09-22T11:39:00-03:00`, edad 1,4 min al consultar.
+
+Implementación activada y verificada. Se recrearon solo backend y frontend dev con
+`--no-build --no-deps`. Imágenes activas: backend `ee65ec147d84`, frontend `47e97c4b56fd`.
+MySQL y Redis siguen sanos en sus contenedores previos; no se migró ni alteró la DB.
+Consultar `git log -1` para el commit de cierre de esta rama; no se hace push.
+Las imágenes API anteriores están preservadas en ambos repositorios locales con
+tag `api-before-scraping`. Dockerfiles incrementales en `.local/conditions-scraping.*.Dockerfile`;
+reutilizan dependencias idénticas sin instalar paquetes. DB y Redis deben conservarse.
+
+Continuación: inspeccionar `git status`/último commit y este bloque antes de repetir
+trabajo. No añadir los HTML/JSON descargados al commit. Abrir
+`http://localhost:5173/condiciones-del-rio` y recargar con Ctrl+F5 si quedó una vista
+anterior. La rama API original sigue
+disponible en master; para volver al modo API basta configurar el modo y recrear backend.
+
+Las notas siguientes describen la implementación anterior y su activación original.
+
 ## Objetivo y alcance autorizado
 
 Implementar directamente en este repositorio la solicitud completa adjunta en

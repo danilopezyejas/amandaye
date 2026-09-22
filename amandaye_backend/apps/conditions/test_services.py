@@ -85,7 +85,7 @@ class ConditionsServiceCase(SimpleTestCase):
     def setUp(self):
         super().setUp()
         self.config = copy.deepcopy(settings.CONDITIONS)
-        self.config.update(ecowitt_application_key="", ecowitt_api_key="", ecowitt_mac="",
+        self.config.update(station_mode="api", ecowitt_application_key="", ecowitt_api_key="", ecowitt_mac="",
                            wunderground_api_key="", external_timeout_seconds=5,
                            observation_cache_seconds=300, forecast_cache_seconds=900,
                            fallback_cache_seconds=3600, stale_minutes=20)

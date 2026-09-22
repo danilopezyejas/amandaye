@@ -6,6 +6,10 @@ from django.core.exceptions import ImproperlyConfigured
 
 
 def environment_settings():
+    station_mode = os.environ.get("CONDITIONS_STATION_MODE", "auto").strip().lower()
+    if station_mode not in ("auto", "api", "public_page"):
+        raise ImproperlyConfigured("Invalid CONDITIONS_STATION_MODE.")
+
     def number(name, default, minimum=1, maximum=86400):
         try:
             value = float(os.environ.get(name, default))
@@ -20,6 +24,7 @@ def environment_settings():
         return (Path(filename).read_text(encoding="utf-8") if filename else os.environ.get(name, "")).strip()
 
     return {
+        "station_mode": station_mode,
         "ecowitt_application_key": credential("ECOWITT_APPLICATION_KEY"),
         "ecowitt_api_key": credential("ECOWITT_API_KEY"),
         "ecowitt_mac": os.environ.get("ECOWITT_MAC", "").strip(),

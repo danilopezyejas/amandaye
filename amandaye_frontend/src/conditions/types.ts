@@ -33,6 +33,7 @@ export interface WeatherStation extends Observation {
   provider: string;
   location: string;
   source_url: string;
+  access_method?: 'api' | 'public_page';
   error?: string;
 }
 

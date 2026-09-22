@@ -178,9 +178,53 @@ WUNDERGROUND_API_KEY=
 
 La investigación verificó contratos oficiales y una respuesta real de pronóstico.
 No acredita conectividad autenticada con las dos estaciones: faltan las claves
-y la MAC de Pescadores. Hasta configurarlas, la integración debe informar cada
-estación sin datos y permitir que el pronóstico siga funcionando. No modificar
+y la MAC de Pescadores. En modo `api`, hasta configurarlas, cada estación informa
+que faltan credenciales y el pronóstico sigue funcionando. La rama provisional
+permite obtener observaciones de las páginas públicas, como se describe abajo. No modificar
 `.env` con ejemplos ficticios ni enviar credenciales al frontend, logs o errores.
 
 Consultar la configuración de `apps/conditions/config.py` y la documentación
 operativa de la funcionalidad para caché, timeouts, antigüedad y endpoints del club.
+
+## Investigación de scraping provisional (2026-09-21/22)
+
+El usuario autorizó la rama `codex/condiciones-rio-scraping` mientras consigue claves.
+La implementación original de API se conserva. Ver modos y operación en
+[CONDITIONS.md](CONDITIONS.md#rama-provisional-de-scraping).
+
+Fuentes primarias inspeccionadas directamente, con consultas anónimas:
+
+- [Ecowitt compartido](https://www.ecowitt.net/home/share?authorize=PHC0G3).
+  El HTML carga `/static/js/app.f8de655f14317f5bf392.js`; su manifiesto referencia
+  `/static/js/2.548c5fe02f850a33e520.js`. La vista `share` invoca
+  `getShareDeviceList` e `indexHome`, por POST con formulario, sin claves de API.
+  La lista compartida contenía un dispositivo meteorológico; su identificador se
+  obtiene dinámicamente. La respuesta de `index/home` incluyó mediciones reales
+  recientes, unidades, horas por sensor (`Today HH:MM`) y `UTC_offset=-10800`.
+  Se verificaron los campos `temp.tempf/humidity`, `wind.windspeedmph/windgustmph/winddir`,
+  `pressure.baromrelin` y `rain_piezo.hrain_piezo/rrain_piezo`. El código público
+  también identifica `rain.hourlyrainin/rainratein` para pluviómetro convencional.
+- [WU IPAYSA15](https://www.wunderground.com/dashboard/pws/IPAYSA15).
+  Se recibió HTML con `pws-status` y `*-widget-view`, identificador de estación,
+  estado `offline` y sin hora de observación. Los scripts públicos de los widgets
+  confirman sus atributos `data-unit`, `data-temp`, `data-humidity`, `data-wind-speed`,
+  `data-wind-gust`, `data-wind-dir`, `data-pressure` y `data-precip-rate`.
+  El componente de estado interpola un objeto Date en `data-obs-time-utc`; por eso
+  se interpreta una fecha JS con offset explícito además de ISO 8601.
+  El sitio diferencia unidades `e`, `m`, `h` y `s`; su modo híbrido usa viento en mph.
+  No se usaron las claves que el sitio incorpora a sus scripts ni se consultó su API
+  autenticada. No se validó una lectura real online del Yacht durante esa consulta.
+- El 2026-09-22 el mismo URL de WU devolvió su variante Angular, con
+  `<script id="app-root-state" type="application/json">`. Sus entradas de caché
+  usan `u` (URL), `s` (estado HTTP) y `b` (cuerpo); la variante `wu-next-state-key`
+  contiene `url` y `value`. El registro de `/v2/pwsidentity` confirmó `ID=IPAYSA15`,
+  `isRecent=false` y `lastUpdateTime=2026-09-20T23:50:55Z`. Las respuestas de
+  historial y resumen diario eran HTTP 204; no había observación actual embebida.
+  El scraper admite ambos formatos, discrimina el endpoint `observations/current`
+  y descarta historial, pronósticos y mediciones de otras estaciones. El JSON bruto
+  contiene configuración ajena a las mediciones: nunca se devuelve, registra ni
+  incorpora a fixtures; solo se extraen los campos meteorológicos.
+
+Los archivos descargados para investigación permanecen exclusivamente en `.local/`
+(excluido de Git). Los tests utilizan fixtures sintéticos con estos contratos; no
+guardan HTML bruto, claves del sitio ni datos como valores predeterminados del producto.
