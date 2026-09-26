@@ -1,5 +1,10 @@
 # Plan de Desarrollo para la Aplicación Web del Club Amandayé Ipegua
 
+> **Plan histórico.** Esta propuesta precede a la implementación actual e incluye
+> funcionalidades pendientes. Consultar el [README](README.md) y la
+> [documentación vigente](docs/README.md) para conocer el alcance y los procedimientos
+> disponibles. Se conserva el contenido original como referencia.
+
 Este documento describe el plan detallado para el desarrollo de una aplicación web moderna para el club de canotaje/kayak Amandayé Ipegua. La aplicación constará de un backend construido con Django y Django REST Framework, y un frontend construido con Vue 3, Vite y TailwindCSS.
 
 ## 1. Configuración del Backend (Django + DRF)

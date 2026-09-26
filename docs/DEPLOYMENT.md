@@ -1,6 +1,20 @@
-# Despliegue y desarrollo después de las correcciones de seguridad
+# Despliegue y operación
+
+[Índice](README.md) · [Desarrollo](DEVELOPMENT.md) · [Seguridad](../SECURITY.md)
 
 La configuración principal ejecuta Django con Gunicorn y el frontend compilado detrás de Caddy con HTTPS. MySQL 8.4 y Redis autenticado quedan en una red interna sin puertos publicados. La base anterior, su volumen y sus archivos locales no se migran ni se eliminan automáticamente.
+
+## Entornos
+
+| Entorno | Archivo Compose | Proyecto | Datos |
+| --- | --- | --- | --- |
+| Producción | `docker-compose.yml` | `socios-amandaye-secure` | Volúmenes persistentes propios |
+| Desarrollo | `docker-compose.dev.yml` | `socios-amandaye-devsecure` | Volúmenes persistentes propios |
+| Pruebas MySQL | `docker-compose.test.yml` | `socios-amandaye-security-tests` | Almacenamiento temporal y datos sintéticos |
+
+Los archivos son independientes. Los comandos de esta guía sin `-f` corresponden
+a **producción** y se ejecutan desde la raíz. Para desarrollo, seguir el
+[inicio rápido](../README.md#inicio-rápido) y la [guía local](DEVELOPMENT.md).
 
 ## Preparar una instalación nueva
 
@@ -9,6 +23,7 @@ Se requiere Docker Engine/Desktop con contenedores Linux y Compose v2, un domini
 Ejecutar desde la raíz del proyecto. Estos ejemplos usan PowerShell; sustituir `socios.ejemplo.org` por el dominio real, sin esquema, puerto ni ruta:
 
 ```powershell
+$env:AMANDAYE_SECRETS_DIR = (Join-Path (Get-Location) 'secrets')
 py -3.12 scripts/bootstrap_secrets.py
 $env:SITE_ADDRESS = 'socios.ejemplo.org'
 $env:DJANGO_ALLOWED_HOSTS = 'socios.ejemplo.org'
@@ -22,15 +37,38 @@ docker compose run --rm backend python manage.py check --deploy
 docker compose up -d backend gateway
 ```
 
-En Linux usar `python3 scripts/bootstrap_secrets.py` y `export SITE_ADDRESS=socios.ejemplo.org`, `export DJANGO_ALLOWED_HOSTS=socios.ejemplo.org`. Los valores del dominio deben persistirse en la configuración del servicio que ejecuta Compose. Se pueden guardar en un archivo de configuración fuera de Git; las contraseñas no deben convertirse en variables de entorno ni argumentos de comandos.
+En Linux usar Python 3.12 y configurar las mismas variables antes de los comandos Docker:
 
-`migrate` se ejecuta explícitamente: el arranque normal no modifica el esquema. El entrypoint ejecuta `collectstatic` antes de Gunicorn y WhiteNoise sirve `/static/`. `setup_roles` crea o actualiza los permisos; luego asignar los grupos Secretaría, Tesorería y Directiva a los usuarios que correspondan desde el administrador. La creación de usuarios es interactiva y no trae contraseñas predeterminadas.
+```bash
+export AMANDAYE_SECRETS_DIR="$PWD/secrets"
+python3.12 scripts/bootstrap_secrets.py
+export SITE_ADDRESS=socios.ejemplo.org
+export DJANGO_ALLOWED_HOSTS=socios.ejemplo.org
+```
+
+Si Python 3.12 está disponible como `python3`, usar ese ejecutable. Persistir el
+dominio y el directorio de secretos en la configuración del servicio que ejecuta
+Compose, fuera de Git. Las contraseñas de infraestructura se suministran mediante
+archivos de secretos. El directorio explícito evita heredar los secretos de
+desarrollo de una terminal utilizada para ambos entornos.
+
+`migrate` se ejecuta explícitamente: el arranque normal no modifica el esquema. El entrypoint ejecuta `collectstatic` antes de Gunicorn y WhiteNoise sirve `/static/`. `setup_roles` crea los grupos `Administrador`, `Comision Directiva`, `Secretaria` y `Tesoreria`, y reemplaza sus permisos por los definidos en el código. Revisar personalizaciones antes de volver a ejecutarlo. Asignar los grupos desde el administrador y habilitar `is_staff` en las cuentas que deban acceder allí. La creación de usuarios es interactiva y no trae contraseñas predeterminadas.
+
+En una base nueva, preparar también el catálogo de cobros:
+
+```powershell
+docker compose run --rm backend python manage.py seed_conceptos
+```
+
+Luego configurar los importes aprobados por el club en el administrador, antes de
+aprobar socios que generen cargos o ejecutar cuotas mensuales. El comando crea los
+conceptos faltantes y conserva los existentes; no establece tarifas operativas.
 
 El proyecto Compose de producción se llama `socios-amandaye-secure` y su volumen de datos es `mysql_secure_data`, con el prefijo del proyecto. No reutiliza el volumen anterior `mysql_data`. Las imágenes base siguen ramas mantenidas; actualizar con `build --pull`/`pull`, auditar y probar antes de promover cada versión. Para despliegues reproducibles aprobados, registrar también los digest de las imágenes usadas.
 
 ## Secretos y límites de confianza
 
-En Windows, ejecutar el generador desde la misma cuenta que ejecuta Docker Desktop. Una cuenta aislada de herramientas puede tener un SID distinto: si crea los secretos, Docker no podrá montarlos hasta que se transfiera su acceso al usuario del despliegue. No resolver un error de acceso concediendo lectura a `Everyone` o `Users`. En este espacio de trabajo los archivos ya se prepararon para Danilo; se puede usar `.\.venv\Scripts\python.exe` como intérprete si `py -3.12` no está registrado.
+En Windows, ejecutar el generador desde la misma cuenta que ejecuta Docker Desktop. Una cuenta aislada de herramientas puede tener un SID distinto: si crea los secretos, Docker no podrá montarlos hasta que se transfiera su acceso al usuario del despliegue. No resolver un error de acceso concediendo lectura a `Everyone` o `Users`. Si `py -3.12` no está registrado, usar la ruta a un intérprete Python 3.12 instalado.
 
 `scripts/bootstrap_secrets.py` crea cinco valores aleatorios independientes y dos archivos derivados. Es idempotente: conserva los valores existentes y falla si están vacíos, duplicados, tienen formato inválido o no coinciden entre sí. No conecta con MySQL ni cambia credenciales de una base existente. No lee ni modifica el `.env` anterior.
 
@@ -64,38 +102,17 @@ Después de restaurar una copia: ejecutar `migrate --plan`, revisar el plan y lu
 
 ## Desarrollo local
 
-`docker-compose.dev.yml` es independiente: usarlo solo con `-f`, sin combinarlo con el archivo de producción. Incluye backend Python 3.12 y frontend Node 24, publicados únicamente en `127.0.0.1:8000` y `127.0.0.1:5173`. MySQL y Redis no publican puertos. `DJANGO_ENV=development` y DEBUG se habilitan explícitamente. El frontend ejecuta Vite sin root, con límite de memoria y caché temporal; no monta secretos ni carpetas del host. El código se copia durante el build.
-
-Para una instalación nueva, desde la raíz del proyecto y usando la misma cuenta que ejecuta Docker Desktop:
-
-```powershell
-$env:AMANDAYE_SECRETS_DIR = (Join-Path (Get-Location) 'secrets/development')
-.\.venv\Scripts\python.exe scripts/bootstrap_secrets.py --directory secrets/development
-docker compose -f docker-compose.dev.yml config --quiet
-docker compose -f docker-compose.dev.yml build --pull
-docker compose -f docker-compose.dev.yml up -d db redis
-docker compose -f docker-compose.dev.yml run --rm backend python manage.py migrate --noinput
-docker compose -f docker-compose.dev.yml run --rm backend python manage.py setup_roles
-docker compose -f docker-compose.dev.yml run --rm backend python manage.py createsuperuser
-docker compose -f docker-compose.dev.yml up -d
-docker compose -f docker-compose.dev.yml ps
-```
-
-Si no existe `.venv`, usar un intérprete Python 3.12 instalado, por ejemplo `py -3.12`; el generador utiliza solo la biblioteca estándar. Al restaurar una base anterior, omitir `createsuperuser` si ya contiene los usuarios necesarios. No ejecutar las migraciones de esta secuencia sobre una base vacía antes de restaurar un dump con esquema: seguir el procedimiento de recuperación siguiente.
-
-Abrir `http://127.0.0.1:5173`. Dentro de Docker, Vite deriva `/api/`, `/login/`, `/admin/`, `/apps/` y `/static/` a `http://backend:8000`. `AMANDAYE_DEV_API_TARGET` es configuración confiable del servidor Vite y no se publica como variable del navegador. El puerto del contenedor escucha internamente en todas sus interfaces, pero Compose lo publica solo en loopback del host. Reconstruir tras cambiar código con `docker compose -f docker-compose.dev.yml up -d --build backend frontend`. No usar Vite, `vite preview` ni `runserver` para publicar el servicio en Internet.
-
-También se puede ejecutar el frontend de forma nativa con Node 24: dejar detenido el servicio `frontend`, entrar en `amandaye_frontend`, ejecutar `npm ci --ignore-scripts` y `npm run dev`. Sin `AMANDAYE_DEV_API_TARGET`, Vite mantiene su escucha en `127.0.0.1` y usa `http://127.0.0.1:8000` como destino. No iniciar simultáneamente ambos frontends en el puerto 5173.
+La [guía de desarrollo](DEVELOPMENT.md) reúne instalación, frontend nativo, pruebas
+y diagnóstico. El backend y Vite se publican solo en loopback; MySQL y Redis
+permanecen internos. El código se copia durante el build y requiere reconstrucción
+para reflejar cambios. No publicar Vite, `vite preview` ni `runserver` en Internet.
 
 ### Recuperar un entorno antiguo que falla por SECRET_KEY
 
-El error `Configure SECRET_KEY or SECRET_KEY_FILE` en un contenedor Python 3.9 indica que el contenedor anterior está leyendo la configuración nueva sin recibir los secretos ni las dependencias actualizadas. Reiniciarlo no reemplaza su imagen, variables ni montajes. El frontend Node 20 anterior tampoco puede usar `127.0.0.1:8000` para alcanzar otro contenedor: esa dirección apunta a sí mismo.
-
-1. Identificar los contenedores y el volumen MySQL antiguos. Detener únicamente sus servicios web para liberar 8000/5173 y evitar nuevas escrituras; conservar la base y el volumen. No ejecutar `down -v` ni borrar volúmenes.
-2. Guardar y verificar una copia lógica del esquema de aplicación y sus datos desde MySQL 8.0. No copiar tablas de sistema, usuarios ni permisos globales. Conservar el original como respaldo.
-3. Preparar los secretos de desarrollo y construir las imágenes nuevas con los comandos anteriores. Arrancar únicamente `db redis`; el proyecto `socios-amandaye-devsecure` usa el volumen nuevo `mysql_dev_secure_data`. No montar el directorio de datos MySQL 8.0 directamente en MySQL 8.4.
-4. Restaurar la copia lógica en la base nueva, revisar `migrate --plan` y ejecutar `migrate --noinput` y `setup_roles`. Validar recuentos de socios y movimientos, saldos y permisos antes de continuar. Los archivos de secretos no cambian las contraseñas de una base previamente inicializada.
-5. Arrancar el nuevo entorno con `docker compose -f docker-compose.dev.yml up -d --force-recreate`. Comprobar acceso en `http://127.0.0.1:5173` y `/login/`, además de las operaciones autorizadas. El volumen original debe permanecer conservado hasta verificar la recuperación y su copia de seguridad.
+Reiniciar un contenedor antiguo no actualiza su imagen, variables ni montajes. Ver
+[recuperación del entorno](DEVELOPMENT.md#recuperar-un-entorno-antiguo) y el
+[procedimiento de migración de datos](#migrar-una-instalación-con-datos-existentes)
+antes de recrearlo.
 
 ## Comprobaciones antes de abrir tráfico
 
@@ -108,7 +125,13 @@ curl.exe -I "https://$env:SITE_ADDRESS/"
 curl.exe -i "https://$env:SITE_ADDRESS/api/socios/"
 ```
 
-Verificar certificado válido, redirección HTTP a HTTPS y denegación de lectura anónima en `/api/socios/` (401/403). Probar registro público de una persona ficticia, aprobación solo por Directiva, operaciones financieras según rol y limitación de intentos fallidos. La inscripción pública devuelve una confirmación mínima. Confirmar que MySQL, Redis y el backend de producción no tienen puertos publicados, que los backups pueden restaurarse y que no hay claves ni información personal en los logs.
+Verificar certificado válido, redirección HTTP a HTTPS y denegación de lectura anónima en `/api/socios/` (401/403). Probar registro público de una persona ficticia, aprobación solo con el permiso correspondiente, operaciones financieras según rol y limitación de intentos fallidos. La inscripción pública devuelve una confirmación mínima. Confirmar que MySQL, Redis y el backend de producción no tienen puertos publicados, que los backups pueden restaurarse y que no hay claves ni información personal en los logs.
+
+Comprobar también el acceso directo a `/condiciones-del-rio` y las respuestas de
+`/api/conditions/`. Revisar la disponibilidad y antigüedad de cada fuente: recibir
+HTTP 200 no garantiza que todas las estaciones estén entregando observaciones.
+La [configuración ambiental](CONDITIONS.md#configuración) describe los modos de
+acceso, las credenciales opcionales y la conectividad saliente.
 
 La validación de sintaxis `docker compose config --quiet` funciona sin daemon. Construir las imágenes, validar Caddy dentro del contenedor y probar TLS, salud y flujos integrados requieren Docker activo; no interpretar una validación estática como una prueba de despliegue completada.
 
@@ -116,22 +139,57 @@ La validación de sintaxis `docker compose config --quiet` funciona sin daemon. 
 
 ## Pruebas de seguridad y concurrencia con MySQL
 
-La suite local de [README](../README.md) usa SQLite en memoria. Para probar también la exclusión mutua entre pagos, cargos, anulaciones y reversiones, ejecutar desde la raíz:
+Ejecutar las [pruebas con MySQL desechable](DEVELOPMENT.md#concurrencia-con-mysql)
+para validar exclusión mutua entre pagos, cargos, anulaciones y reversiones.
+La suite SQLite no sustituye esa verificación. Usar exclusivamente el Compose de
+pruebas y bases desechables; Django puede vaciar sus tablas durante la suite.
+
+## Actualizaciones y recuperación
+
+1. Identificar el commit a desplegar, revisar cambios de configuración y migraciones,
+   y ejecutar las verificaciones pertinentes en un entorno separado.
+2. Registrar las imágenes vigentes y disponer de un respaldo consistente cuya
+   restauración se haya ensayado.
+3. Construir las imágenes de la versión elegida. Si cambia el esquema, revisar
+   `migrate --plan` y aplicar las migraciones durante una ventana controlada.
+4. Recrear backend y gateway, y repetir las comprobaciones de acceso y de flujos.
+5. Conservar el respaldo y las imágenes anteriores hasta validar el resultado.
+
+Volver a una imagen anterior no revierte migraciones ni escrituras posteriores.
+La recuperación debe considerar la compatibilidad del esquema y la conciliación
+de movimientos realizados desde el respaldo. No ejecutar `down -v` para actualizar.
+
+## Mantenimiento
+
+| Tarea | Criterio operativo |
+| --- | --- |
+| Respaldo y restauración | Definir frecuencia, retención y responsables; ensayar restauraciones en un entorno separado. |
+| Cuotas mensuales | Configurar conceptos e importes, elegir el periodo y revisar el resumen de creación, omisiones y errores. |
+| Tokens caducados | Programar `flushexpiredtokens` según la operación del servidor. |
+| Logs | Revisar fallos de autenticación, errores internos y disponibilidad de proveedores. |
+| Dependencias e imágenes | Evaluar actualizaciones, probarlas y registrar la versión publicada. |
+
+Los siguientes comandos se ejecutan manualmente desde la raíz y modifican el
+estado del sistema; el repositorio no los programa automáticamente:
 
 ```powershell
-docker compose -f docker-compose.test.yml build tests
-docker compose -f docker-compose.test.yml run --rm tests
-docker compose -f docker-compose.test.yml down
+# Sustituir el periodo por el aprobado para la emisión.
+docker compose run --rm backend python manage.py generar_cuotas_mensuales --periodo 2026-09
+docker compose run --rm backend python manage.py flushexpiredtokens
 ```
 
-Este Compose es independiente de producción y desarrollo: su proyecto es `socios-amandaye-security-tests`, usa MySQL 8.4 con almacenamiento temporal en memoria, sin puertos publicados ni volúmenes persistentes. La contraseña escrita en ese archivo corresponde exclusivamente a una cuenta sintética de pruebas, limitada al esquema `test_amandaye_security`. No monta ni lee los secretos, `.env`, SQLite o SQL personales. `down` elimina únicamente sus contenedores y su red; no usar ese comando con otro archivo para limpiar pruebas.
+La generación mensual omite cargos ya existentes para la cuenta, concepto y periodo.
+Revisar siempre el resumen: puede haber errores en unas cuentas y éxito en otras.
 
-`settings_test_mysql` exige una cuenta de pruebas distinta de `root` y `amandaye_app`, y nombres de base que empiecen con `test_amandaye_`. Django puede vaciar esas tablas durante la suite. No apuntar las variables `TEST_MYSQL_*` a una base con datos que se deban conservar.
-
-## Historial y operación después del cambio
+## Historial y registros
 
 La exclusión de archivos sensibles del índice de Git y del contexto Docker conserva sus copias locales. No elimina commits anteriores, clones, backups ni imágenes ya publicadas. Si el repositorio o las imágenes se compartieron, inventariar esas copias y coordinar la purga del historial/artefactos con sus responsables; después verificar un clon limpio. No volver a usar claves históricas. Cambiar archivos de secretos locales tampoco rota una contraseña en una base ya inicializada.
 
 Enviar los eventos `amandaye.security` y de bloqueo de autenticación al recolector de logs del despliegue y configurar alertas ante bloqueos repetidos y errores internos. Limitar acceso y retención de logs. Planificar `flushexpiredtokens` para retirar entradas JWT caducadas; no borrar entradas de tokens aún vigentes. Verificar periódicamente dependencias e imágenes y probar actualizaciones antes de publicarlas.
 
-Referencias: [secretos de Compose](https://docs.docker.com/reference/compose-file/services/#secrets), [cabeceras del proxy Caddy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#headers), [autenticación de Redis](https://redis.io/docs/latest/operate/oss_and_stack/management/security/), [inicialización oficial de MySQL](https://github.com/docker-library/mysql/blob/master/8.4/docker-entrypoint.sh).
+## Referencias
+
+- [Secretos de Compose](https://docs.docker.com/reference/compose-file/services/#secrets).
+- [Cabeceras del proxy Caddy](https://caddyserver.com/docs/caddyfile/directives/reverse_proxy#headers).
+- [Autenticación de Redis](https://redis.io/docs/latest/operate/oss_and_stack/management/security/).
+- [Inicialización oficial de MySQL](https://github.com/docker-library/mysql/blob/master/8.4/docker-entrypoint.sh).

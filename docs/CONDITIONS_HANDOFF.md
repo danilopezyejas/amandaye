@@ -1,5 +1,20 @@
 # Traspaso — Condiciones del río
 
+> **Registro histórico de implementación.** Para instalar, configurar u operar el
+> proyecto, consultar el [índice de documentación vigente](README.md). Los resultados,
+> imágenes y estados de estaciones de cada bloque corresponden a su fecha.
+
+## Actualización de documentación — 2026-09-26
+
+El commit de scraping `4a00982` se publicó en GitHub en la rama
+`codex/condiciones-rio-scraping` después de las verificaciones del bloque siguiente.
+Las menciones a «no se hizo push» describen el estado previo a esa publicación.
+Este trabajo de documentación no implica un despliegue en producción.
+
+Las guías de desarrollo, arquitectura, API, despliegue, contribución y seguridad
+están organizadas desde [docs/README.md](README.md). Se conserva este registro
+para continuar la integración de las API cuando estén disponibles sus credenciales.
+
 ## Rama de scraping provisional — 2026-09-22
 
 Pedido posterior del usuario: crear una rama y hacer scraping de ambas estaciones
@@ -46,7 +61,8 @@ Verificado hasta aquí:
 Implementación activada y verificada. Se recrearon solo backend y frontend dev con
 `--no-build --no-deps`. Imágenes activas: backend `ee65ec147d84`, frontend `47e97c4b56fd`.
 MySQL y Redis siguen sanos en sus contenedores previos; no se migró ni alteró la DB.
-Consultar `git log -1` para el commit de cierre de esta rama; no se hace push.
+El commit de cierre de esta implementación fue `4a00982`; ver la actualización
+de publicación al comienzo de este documento.
 Las imágenes API anteriores están preservadas en ambos repositorios locales con
 tag `api-before-scraping`. Dockerfiles incrementales en `.local/conditions-scraping.*.Dockerfile`;
 reutilizan dependencias idénticas sin instalar paquetes. DB y Redis deben conservarse.

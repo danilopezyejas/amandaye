@@ -1,7 +1,11 @@
 # Condiciones del río: fuentes y contratos externos
 
-Verificación: 15 de septiembre de 2026. Los servicios externos se consultan desde
-Django; Vue/PWA consume solamente la API del club. Las mediciones de estaciones
+[Índice](README.md) · [Guía del módulo](CONDITIONS.md)
+
+Verificación inicial: 15 de septiembre de 2026. Las comprobaciones posteriores
+figuran en sus secciones con su fecha; este documento no representa una verificación
+continua de disponibilidad. Los servicios externos se consultan desde
+Django; Vue consume solamente la API del club. Las mediciones de estaciones
 permanecen separadas del pronóstico de modelos meteorológicos.
 
 | Información | Fuente | Identificación |

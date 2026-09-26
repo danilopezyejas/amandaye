@@ -1,46 +1,127 @@
 # Club Amandayé Ipeguá
 
-Gestión de socios, solicitudes, cuentas corrientes y cobranzas con Django 5.2 LTS, Django REST Framework y Vue 3/TypeScript. El administrador usa sesiones Django y CSRF; la API privada usa JWT con permisos por operación. La inscripción pública acepta solicitudes pendientes y devuelve una confirmación mínima.
+**Plataforma de gestión del club y consulta de condiciones meteorológicas en Paysandú.**
 
-## Instalar y ejecutar
+Reúne la inscripción de socios, la administración de cuentas corrientes y cobranzas,
+y una página pública con observaciones de estaciones locales y pronóstico. La web
+pública está construida con Vue; la administración interna utiliza Django Admin y
+una API con permisos por operación.
 
-Seguir [Despliegue y desarrollo](docs/DEPLOYMENT.md). Incluye creación de secretos, instalación nueva, migración de datos anteriores y comandos de desarrollo.
+[Inicio rápido](#inicio-rápido) · [Documentación](docs/README.md) ·
+[Arquitectura](docs/ARCHITECTURE.md) · [Contribuir](CONTRIBUTING.md) ·
+[Seguridad](SECURITY.md)
 
-- Producción: `docker-compose.yml`, Gunicorn y frontend compilado detrás de Caddy con HTTPS; MySQL 8.4 y Redis permanecen en redes internas.
-- Desarrollo: `docker-compose.dev.yml` independiente, backend en `127.0.0.1:8000` y frontend en `127.0.0.1:5173`. Docker incluye Python 3.12 y Node 24; también se puede ejecutar Vite de forma nativa según la guía.
-- Secretos: `python scripts/bootstrap_secrets.py` con Python 3.12. El generador conserva las credenciales existentes. Las configuraciones inseguras anteriores ya no permiten iniciar el backend.
+## Funcionalidades
 
-Los comandos no importan el SQL anterior ni modifican automáticamente una base existente. La migración y la provisión de usuarios se ejecutan expresamente según la guía.
+| Área | Qué permite hacer |
+| --- | --- |
+| Inscripciones y socios | Recibir solicitudes públicas, administrar personas y gestionar aprobación, baja y habilitación. |
+| Cuentas y cobranzas | Registrar cargos y pagos, aplicar pagos, consultar saldos y reportes, generar cuotas y conservar auditoría de anulaciones y reversiones. |
+| Acceso del personal | Asignar permisos mediante los grupos Administrador, Comision Directiva, Secretaria y Tesoreria. |
+| Condiciones del río | Consultar temperatura, viento, presión y lluvia de estaciones locales, su antigüedad y un pronóstico independiente de Open-Meteo. |
 
-## Pruebas locales aisladas
+### Estado de la integración meteorológica
 
-Desde la raíz, con Python 3.12 y Node compatibles instalados:
+Esta rama, `codex/condiciones-rio-scraping`, incorpora lectura provisional de las
+páginas públicas de Ecowitt y Weather Underground mientras se obtienen las claves
+de sus API. El modo `auto` elige la API cuando la estación tiene todas sus
+credenciales y, en caso contrario, su página pública. La disponibilidad depende
+de cada fuente; la interfaz identifica datos antiguos y estaciones sin conexión.
+
+La página muestra **información meteorológica**: todavía no integra altura del río,
+corrientes ni una evaluación de aptitud para navegar. Ver
+[fuentes, configuración y límites](docs/CONDITIONS.md).
+
+## Tecnologías
+
+| Componente | Tecnología |
+| --- | --- |
+| Backend | Python 3.12, Django 5.2 LTS, Django REST Framework |
+| Frontend | Vue 3, TypeScript, Vite 7, Tailwind CSS 4; imágenes con Node 24 |
+| Datos y caché | MySQL 8.4, Redis |
+| Autenticación | Sesiones y CSRF en el administrador; JWT en la API privada |
+| Producción | Docker Compose, Gunicorn, WhiteNoise y Caddy con HTTPS |
+| Pruebas | Django, runner de Node y MySQL desechable para concurrencia |
+
+Las dependencias resueltas están en
+[`requirements.txt`](amandaye_backend/requirements.txt) y
+[`package-lock.json`](amandaye_frontend/package-lock.json).
+
+## Inicio rápido
+
+### Requisitos
+
+- Git, Docker con contenedores Linux y Docker Compose v2.
+- Python 3.12 para generar secretos; este paso usa solo la biblioteca estándar.
+- Acceso a Internet para descargar imágenes y dependencias. Las fuentes
+  meteorológicas también requieren conexión desde el backend.
+
+### Primera instalación de desarrollo
+
+Los ejemplos usan **PowerShell** y preparan una base nueva. Si ya hay datos que
+conservar, seguir primero [migración de una instalación existente](docs/DEPLOYMENT.md#migrar-una-instalación-con-datos-existentes).
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --require-hashes -r amandaye_backend/requirements.txt
-Set-Location amandaye_backend
-..\.venv\Scripts\python.exe manage.py test --settings=amandaye_backend.settings_test --noinput
-..\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run --settings=amandaye_backend.settings_test
-Set-Location ../amandaye_frontend
-npm ci --ignore-scripts
-npm test
-npm run build
-npm audit
+git clone --branch codex/condiciones-rio-scraping https://github.com/danilopezyejas/amandaye.git
+Set-Location amandaye
+
+$env:AMANDAYE_SECRETS_DIR = (Join-Path (Get-Location) 'secrets/development')
+py -3.12 scripts/bootstrap_secrets.py --directory secrets/development
+
+docker compose -f docker-compose.dev.yml config --quiet
+docker compose -f docker-compose.dev.yml build --pull
+docker compose -f docker-compose.dev.yml up -d db redis
+docker compose -f docker-compose.dev.yml run --rm backend python manage.py migrate --noinput
+docker compose -f docker-compose.dev.yml run --rm backend python manage.py setup_roles
+docker compose -f docker-compose.dev.yml run --rm backend python manage.py createsuperuser
+docker compose -f docker-compose.dev.yml up -d
 ```
 
-La configuración de pruebas usa credenciales sintéticas y SQLite en memoria: no lee el `.env` ni la base personal. Las pruebas de concurrencia requieren MySQL/InnoDB y se omiten en SQLite; ver la guía para ejecutarlas sobre una base desechable.
+Si ya tenés el repositorio, empezar desde su raíz en el paso de configuración de
+secretos. Ejecutar el generador con la misma cuenta que utiliza Docker Desktop;
+conserva los valores existentes. En Linux/macOS, ver las
+[adaptaciones de comandos](docs/DEVELOPMENT.md#linux-y-macos).
 
-## Estructura
+### Accesos locales
 
-- `amandaye_backend/apps/usuarios/`: socios, personas, estados, permisos y solicitudes.
-- `amandaye_backend/apps/cobranzas/`: cargos, pagos, aplicaciones, cuotas y auditoría.
-- `amandaye_backend/amandaye_backend/security/`: bloqueo de login, respuestas seguras y pruebas de configuración.
-- `amandaye_frontend/src/`: interfaz Vue, transporte autenticado y formularios.
-- `docker/`, `scripts/`, `docs/`: ejecución y operación.
-- `amandaye_backend/apps/conditions/`: observaciones locales, consolidación y pronóstico;
-  [configuración, API y pruebas](docs/CONDITIONS.md). Página `/condiciones-del-rio`.
+| Acceso | Dirección |
+| --- | --- |
+| Página principal e inscripción | [127.0.0.1:5173](http://127.0.0.1:5173/) |
+| Condiciones del río | [127.0.0.1:5173/condiciones-del-rio](http://127.0.0.1:5173/condiciones-del-rio) |
+| Administración | [127.0.0.1:5173/admin/](http://127.0.0.1:5173/admin/) |
+| API ambiental pública | [127.0.0.1:5173/api/conditions/](http://127.0.0.1:5173/api/conditions/) |
 
-Los movimientos financieros se realizan mediante servicios transaccionales que verifican al operador. Los importes y los vínculos de movimientos existentes no se editan ni se eliminan desde formularios genéricos; las reversiones y anulaciones conservan auditoría. Directiva controla las transiciones de socios y los ajustes de cuota.
+La portada incluye un enlace a **Condiciones del río**. MySQL y Redis quedan dentro
+de Docker. La primera cuenta administrativa se crea de forma interactiva; no hay
+una contraseña predeterminada. Antes de operar cobranzas, configurar conceptos e
+importes según la [puesta en marcha funcional](docs/DEVELOPMENT.md#puesta-en-marcha-funcional).
 
-Los secretos, datos personales locales y archivos generados quedan excluidos de Git y del contexto Docker. Esta exclusión no borra versiones anteriores del historial compartido.
+## Organización del repositorio
+
+```text
+amandaye_backend/
+├── amandaye_backend/     # Configuración Django y controles de seguridad
+└── apps/
+    ├── usuarios/        # Socios, personas, solicitudes y habilitación
+    ├── cobranzas/       # Cuentas, cargos, pagos, cuotas y auditoría
+    └── conditions/      # Proveedores, normalización, caché y consolidación
+amandaye_frontend/       # Web pública, formularios y página meteorológica
+docker/                 # Imágenes, entrypoint y gateway Caddy
+scripts/                # Preparación de secretos
+docs/                   # Guías técnicas y operativas
+```
+
+## Documentación
+
+| Para… | Consultar |
+| --- | --- |
+| Desarrollar, ejecutar pruebas y resolver problemas locales | [Desarrollo](docs/DEVELOPMENT.md) |
+| Entender módulos, flujos y responsabilidades | [Arquitectura](docs/ARCHITECTURE.md) |
+| Integrar clientes y revisar permisos de endpoints | [API](docs/API.md) |
+| Configurar estaciones y pronóstico | [Condiciones del río](docs/CONDITIONS.md) |
+| Publicar, migrar datos y operar el servicio | [Despliegue](docs/DEPLOYMENT.md) |
+| Proponer cambios | [Contribución](CONTRIBUTING.md) |
+| Administrar accesos, secretos e incidentes | [Seguridad](SECURITY.md) |
+
+El [índice de documentación](docs/README.md) distingue las guías vigentes de las
+notas históricas de implementación.

@@ -1,13 +1,15 @@
 # Condiciones del río
 
+[Índice](README.md) · [Arquitectura](ARCHITECTURE.md) · [Fuentes](CONDITIONS_SOURCES.md)
+
 Página pública: `/condiciones-del-rio`. Presenta observaciones locales consolidadas,
 pronóstico independiente y un desplegable con cada estación. No evalúa navegación
 ni guarda histórico en MySQL.
 
 ## Arquitectura
 
-Se conserva Django 5.2/DRF, Vue 3/TypeScript, Vite/Tailwind y la autenticación existente.
-La nueva app `apps.conditions` no contiene modelos ni requiere migraciones.
+El módulo utiliza Django/DRF, Vue/TypeScript y la configuración compartida del proyecto.
+La app `apps.conditions` no contiene modelos ni requiere migraciones propias.
 
 ```text
 Ecowitt / Weather Underground → services.weather → normalization
@@ -16,17 +18,18 @@ Ecowitt / Weather Underground → services.weather → normalization
                                                    ↓
                                              aggregation
                                                    ↓
-Open-Meteo → services.forecast → caché propia → API Django → Vue/PWA
+Open-Meteo → services.forecast → caché propia → API Django → Vue
 ```
 
 El frontend usa exclusivamente `publicApi` del proyecto, bajo `/api/` y mismo origen.
 Los enlaces a dashboards son enlaces voluntarios, no consultas de datos desde Vue.
-La portada sigue en `App.vue`; `main.ts` monta `RouterView` para habilitar las páginas.
+La portada en `App.vue` incluye un enlace a la página; `main.ts` monta `RouterView`.
 
 ## Fuentes y credenciales pendientes
 
-Los contratos se investigaron antes de implementarlos. Ver
-[investigación y referencias primarias](CONDITIONS_SOURCES.md).
+Los contratos externos y sus fechas de verificación están en
+[fuentes y referencias primarias](CONDITIONS_SOURCES.md). La siguiente tabla
+describe las API; la lectura provisional de páginas públicas se detalla después.
 
 | Fuente | Acceso implementado | Datos que debe aportar el responsable |
 |---|---|---|
@@ -112,9 +115,9 @@ de secreto montado en el backend. El soporte `_FILE` de Django no monta el archi
 quien despliega debe declarar ese montaje y esa variable en su configuración Compose.
 No agregar claves como variables `VITE_*`, al repositorio ni a comandos compartidos.
 
-En desarrollo nativo, Django puede leer las variables añadidas al `.env` existente
-del backend. No se modificó ese archivo. Compose usa `AMANDAYE_SKIP_DOTENV=1`:
-se añadieron los parámetros opcionales a `environment` del backend de ambos Compose.
+En desarrollo nativo, Django puede leer las variables del `.env` del backend.
+Compose usa `AMANDAYE_SKIP_DOTENV=1`: los parámetros opcionales se declaran en
+`environment` del backend de ambos archivos Compose.
 Pueden suministrarse mediante un archivo local protegido y excluido de Git:
 `docker compose --env-file amandaye_backend/.env.conditions ...` o, para desarrollo,
 `docker compose --env-file amandaye_backend/.env.conditions -f docker-compose.dev.yml ...`.
@@ -182,7 +185,8 @@ proveedor, estación, categoría y status HTTP; no incluyen URLs con claves ni t
 
 ## Caché, errores y concurrencia
 
-Se reutiliza `django.core.cache`: Redis compartido en producción y LocMem en desarrollo.
+Se utiliza `django.core.cache`: Redis compartido en ambos entornos Compose y
+LocMem en las pruebas SQLite o en desarrollo nativo cuando no se configura Redis.
 Observaciones se cachean 5 minutos por estación; pronóstico 15 minutos por coordenadas.
 Errores también se cachean para evitar llamadas repetidas contra una fuente caída.
 El último éxito se conserva por una hora por defecto. Ante fallo se puede devolver
@@ -210,38 +214,26 @@ memoria rotulados como anteriores. No hay persistencia offline entre reinicios.
 Si otra solicitud está completando la caché (`refreshing`), se reintenta cada 2 segundos,
 hasta tres veces; después se conserva el intervalo normal de cinco minutos.
 
-Se enlaza el manifest existente y se reutilizan los iconos disponibles. No se agregó
+El frontend enlaza el manifiesto web y los iconos del proyecto. No incluye
 service worker ni una infraestructura offline. La instalación/ejecución como PWA
 depende del soporte del navegador y de servir por HTTPS fuera de localhost.
 
 ## Pruebas y ejecución local
 
-Desde `amandaye_backend`, con el entorno Python existente:
+Preparar el entorno según [Desarrollo](DEVELOPMENT.md#pruebas-locales-aisladas).
+Para ejecutar solo las pruebas de este módulo, desde `amandaye_backend`:
 
 ```powershell
-..\.venv\Scripts\python.exe manage.py test --settings=amandaye_backend.settings_test --noinput
 ..\.venv\Scripts\python.exe manage.py test apps.conditions --settings=amandaye_backend.settings_test --noinput
-..\.venv\Scripts\python.exe manage.py makemigrations --check --dry-run --settings=amandaye_backend.settings_test
 ```
 
-Desde `amandaye_frontend`:
-
-```powershell
-npm test
-npm run build
-npx vue-tsc --noEmit
-```
-
-Los tests externos usan mocks y no requieren Internet. Backend cubre conversiones,
+Las pruebas de proveedores usan respuestas simuladas y no requieren Internet. Backend cubre conversiones,
 normalización, timestamp, dirección, consolidación, proveedores, pronóstico, HTTP,
 errores y caché/concurrencia. Frontend usa el runner Node existente para presentación,
-render SSR y ciclo de refresco/visibilidad/cancelación, sin agregar dependencias.
-La rama provisional agrega `services/scraping.py` y `test_scraping.py`, con 30 pruebas
-de formato público, fechas, unidades, fuente offline, transporte y selección API/página.
-No hay script de lint en el proyecto. `build` incluye `tsc`; `vue-tsc` revisa los SFC.
-En el aislamiento Windows de herramientas, Vite puede requerir
-`node node_modules/vite/bin/vite.js build --configLoader runner` después de `tsc` por
-permisos de lectura de carpetas padre. Es una alternativa de ejecución, no cambio de build.
+render SSR y ciclo de refresco/visibilidad/cancelación. Las pruebas de scraping cubren
+formato público, fechas, unidades, fuente offline, transporte y selección API/página.
+Los comandos de pruebas, comprobación de tipos y compilación del frontend están en
+la [guía de desarrollo](DEVELOPMENT.md#frontend).
 
 Arranque habitual sobre entorno ya configurado:
 
@@ -249,11 +241,9 @@ Arranque habitual sobre entorno ya configurado:
 docker compose -f docker-compose.dev.yml up -d --build backend frontend
 ```
 
-O backend nativo desde `amandaye_backend` (requiere sus secretos/DB existentes):
-`..\.venv\Scripts\python.exe manage.py runserver 127.0.0.1:8000`.
-Frontend nativo desde `amandaye_frontend`: `npm run dev`.
-Abrir `http://127.0.0.1:5173/condiciones-del-rio`.
-Preparación inicial y MySQL desechable para pruebas: [DEPLOYMENT.md](DEPLOYMENT.md).
+Abrir [Condiciones del río](http://127.0.0.1:5173/condiciones-del-rio).
+Para editar Vue con recarga automática, usar el
+[frontend nativo](DEVELOPMENT.md#frontend-nativo-con-recarga-de-cambios).
 
 ## Extensiones posteriores
 
@@ -267,29 +257,18 @@ Preparación inicial y MySQL desechable para pruebas: [DEPLOYMENT.md](DEPLOYMENT
 - Garmin: adaptador independiente, con autorización y contrato por definir cuando se
   especifique qué datos necesita el club. No hay OAuth, claves ni endpoints supuestos hoy.
 
-El documento [CONDITIONS_HANDOFF.md](CONDITIONS_HANDOFF.md) registra el estado de
-validación y los pendientes reales para continuar esta tarea.
+Estas extensiones son propuestas, no funcionalidades disponibles. El
+[registro de traspaso](CONDITIONS_HANDOFF.md) conserva las verificaciones históricas
+y el contexto de implementación.
 
-## Inventario de archivos
+## Código de referencia
 
-Nuevos:
-
-- `amandaye_backend/apps/conditions/`: `__init__.py`, `apps.py`, `config.py`,
-  `utils.py`, `normalization.py`, `aggregation.py`, `views.py`, `urls.py`,
-  `services/__init__.py`, `services/http.py`, `services/weather.py`,
-  `services/forecast.py`, `services/cache.py`, `test_weather_core.py`, `test_services.py`.
-- `amandaye_backend/.env.example`.
-- `amandaye_frontend/src/pages/RiverConditionsPage.vue`,
-  `src/components/ConditionsDashboard.vue`, `src/conditions/types.ts`,
-  `src/conditions/presentation.ts`, `src/conditions/feed.ts`, `tests/conditions.test.mjs`.
-- `docs/CONDITIONS.md`, `docs/CONDITIONS_SOURCES.md`, `docs/CONDITIONS_HANDOFF.md`.
-
-Modificados:
-
-- Backend: `amandaye_backend/settings.py` y `amandaye_backend/urls.py`.
-- Frontend: `src/main.ts`, `src/router/index.ts`, `src/App.vue`, `src/style.css`,
-  `index.html`, `public/manifest.webmanifest`.
-- Raíz: `docker-compose.yml`, `docker-compose.dev.yml`, `README.md`.
-
-No se agregaron dependencias. Los archivos `.local/` de verificación son temporales,
-están excluidos de Git y no forman parte de la funcionalidad entregada.
+| Componente | Ubicación |
+| --- | --- |
+| Configuración, normalización, consolidación y API | [apps/conditions](../amandaye_backend/apps/conditions/) |
+| Adaptadores y caché | [services](../amandaye_backend/apps/conditions/services/) |
+| Lectura provisional de páginas públicas | [scraping.py](../amandaye_backend/apps/conditions/services/scraping.py) |
+| Página Vue | [RiverConditionsPage.vue](../amandaye_frontend/src/pages/RiverConditionsPage.vue) |
+| Visualización del panel | [ConditionsDashboard.vue](../amandaye_frontend/src/components/ConditionsDashboard.vue) |
+| Tipos, presentación y actualización | [src/conditions](../amandaye_frontend/src/conditions/) |
+| Plantilla de variables | [.env.example](../amandaye_backend/.env.example) |
