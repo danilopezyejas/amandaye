@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verificación de Amandayé"
+  short_description: "Valida Django, Vue y documentación del club"
+  default_prompt: "Usá $amandaye-verification para revisar los cambios de este proyecto y ejecutar las comprobaciones pertinentes."

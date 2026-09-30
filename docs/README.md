@@ -14,6 +14,8 @@
 | [Fuentes meteorológicas](CONDITIONS_SOURCES.md) | Contratos externos y referencias verificadas en las fechas indicadas. |
 | [Contribución](../CONTRIBUTING.md) | Preparación y validación de cambios. |
 | [Seguridad](../SECURITY.md) | Modelo de acceso, protección de datos y comunicación de incidentes. |
+| [ECC y trabajo asistido](ECC_INTEGRATION.md) | Instalación del plugin y adaptación de sus procedimientos al proyecto. |
+| [Continuidad](CONTINUITY.md) | Estado de referencia, decisiones y próximos pasos entre sesiones. |
 
 ## Por dónde empezar
 

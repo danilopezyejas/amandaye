@@ -2,6 +2,11 @@
 
 [Proyecto](README.md) · [Desarrollo](docs/DEVELOPMENT.md) · [Arquitectura](docs/ARCHITECTURE.md)
 
+Para trabajar con agentes, consultar [AGENTS.md](AGENTS.md) y la
+[integración de ECC](docs/ECC_INTEGRATION.md). La skill `amandaye-verification`
+selecciona comprobaciones según el cambio; el registro de
+[continuidad](docs/CONTINUITY.md) conserva decisiones y pendientes entre sesiones.
+
 ## Preparar un cambio
 
 1. Identificar el comportamiento esperado y el módulo que lo implementa.
