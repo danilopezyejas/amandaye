@@ -48,6 +48,7 @@ Verificaciones realizadas el 2026-10-02:
 - `manage.py makemigrations --check --dry-run`;
 - 10 pruebas dirigidas de Gestión y cobros, incluyendo revisión/confirmación de la
   pantalla y generación del PDF;
+- suite backend completa: 206 pruebas, con 4 omitidas ya existentes;
 - `git diff --check` (solo informó conversiones de finales de línea de Windows).
 
 La siguiente etapa todavía no está implementada: emisión de cuotas con vista previa,
