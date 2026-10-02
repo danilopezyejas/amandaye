@@ -103,6 +103,9 @@
 
 {% block userlinks %}
     {% if user.is_active and user.is_staff %}
+        {% if perms.usuarios.view_socios or perms.usuarios.view_personas or perms.cobranzas.view_cuentacorriente %}
+            <a href="{% url 'gestion:dashboard' %}">Gestión diaria</a> /
+        {% endif %}
         {% url 'django-admindocs-docroot' as docsroot %}
         {% if docsroot %}
             <a href="{{ docsroot }}">{% translate 'Documentation' %}</a> /

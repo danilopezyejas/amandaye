@@ -11,6 +11,7 @@
 | [API](API.md) | Rutas, métodos, permisos y convenciones de integración. |
 | [Despliegue](DEPLOYMENT.md) | Instalación en producción, secretos, migración, verificaciones y mantenimiento. |
 | [Condiciones del río](CONDITIONS.md) | Configuración, contrato ambiental, proveedores, caché y límites del scraping provisional. |
+| [Gestión diaria](GESTION.md) | Panel de Secretaría/Tesorería, ficha de socio, cobros y comprobantes internos. |
 | [Fuentes meteorológicas](CONDITIONS_SOURCES.md) | Contratos externos y referencias verificadas en las fechas indicadas. |
 | [Contribución](../CONTRIBUTING.md) | Preparación y validación de cambios. |
 | [Seguridad](../SECURITY.md) | Modelo de acceso, protección de datos y comunicación de incidentes. |
@@ -25,6 +26,12 @@
 - **Administrar un servidor:** despliegue y seguridad; ensayar primero cualquier
   restauración o migración en un entorno separado.
 - **Configurar las estaciones:** condiciones del río y fuentes meteorológicas.
+
+## Planificación activa
+
+- [Gestión de Secretaría y Tesorería](../plans/gestion-secretaria-tesoreria.md):
+  plan por etapas para ficha unificada, cobro y pendientes; incluye tarifas,
+  vista previa de cuotas y seguimiento.
 
 ## Notas históricas
 

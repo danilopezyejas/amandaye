@@ -7,11 +7,12 @@ Este registro conserva decisiones y próximos pasos entre sesiones. Comprobar si
 verificarse de nuevo cuando sean relevantes. Mantenerlo breve y sin datos personales,
 secretos, volcados de conversaciones ni logs completos.
 
-## Estado de referencia — 2026-09-30
+## Estado de referencia — 2026-10-02
 
-- Rama de trabajo: `codex/condiciones-rio-scraping`.
+- Rama de trabajo: `codex/gestion-secretaria-tesoreria`.
 - Scraping provisional implementado en `4a00982`; documentación reorganizada en
   `f3f91a7`. Ambos commits se publicaron en esa rama.
+- ECC y las instrucciones de proyecto se incorporaron en `22d4148`, también publicado.
 - La página `/condiciones-del-rio` tiene acceso desde la portada. Combina observaciones
   locales con pronóstico independiente; no evalúa navegación ni muestra altura del río.
 - `CONDITIONS_STATION_MODE=auto` usa API cuando hay credenciales completas para la
@@ -21,26 +22,43 @@ secretos, volcados de conversaciones ni logs completos.
   [CONDITIONS_HANDOFF.md](CONDITIONS_HANDOFF.md). No interpretar sus fechas ni estados
   de estaciones como resultados actuales.
 
-## Trabajo de esta entrega
+## Trabajo actual — primera entrega de Gestión
 
-ECC 2.2.2 está instalado y habilitado en el perfil local de Codex. Se incorporaron
-`AGENTS.md`, la skill `amandaye-verification`, la guía de integración y este registro.
-Ver la revisión instalada y sus límites en [ECC_INTEGRATION.md](ECC_INTEGRATION.md).
+El usuario autorizó implementar la primera entrega del
+[plan de Gestión](../plans/gestion-secretaria-tesoreria.md) en esta rama. El panel
+está disponible en `/admin/gestion/` y usa Django con los permisos existentes.
 
-Comprobaciones del 30 de septiembre de 2026:
+Se implementó:
 
-- Diagnóstico de caché de ECC satisfactorio; las skills aparecen en el catálogo de
-  la sesión. El manifiesto de hooks existe y contiene JSON válido.
-- Skill local aprobada por el validador oficial; metadatos de interfaz válidos.
-- 131 enlaces y anclas locales revisados en 16 documentos, sin errores.
-- Seis bloques PowerShell de los archivos de integración analizados, sin errores
-  de sintaxis; comandos contrastados con las fuentes del proyecto y la CLI.
+- panel de pendientes para solicitudes, pagos con saldo, deudas vencidas y
+  habilitaciones;
+- búsqueda de socios y ficha unificada con datos familiares, cuenta corriente,
+  embarcaciones e historial administrativo según permisos;
+- flujo de cobro en dos pasos, con propuesta por vencimiento/emisión/número,
+  revisión de saldo restante, idempotencia, control de versión y comprobante PDF;
+- registros aditivos de operación, intención del saldo y comprobante inmutable;
+- configuración de `CLUB_NAME`, `CLUB_CURRENCY` y `CLUB_RECEIPT_DETAILS`.
 
-El alcance es documentación e instrucciones: no se ejecutaron suites funcionales
-del backend o frontend ni se modificaron datos o servicios del club. La continuidad
-queda disponible mediante los archivos versionados; no depende de autorizar hooks
-de ECC. Para retomar, consultar el historial de la rama y elegir el próximo cambio
-con el usuario; las ideas de abajo siguen pendientes de solicitud.
+La moneda elegida para esta entrega es `UYU` por defecto y los datos del club del
+recibo se pueden cambiar por entorno. No se operó sobre datos reales.
+
+Verificaciones realizadas el 2026-10-02:
+
+- `manage.py check --settings=amandaye_backend.settings_test`;
+- `manage.py makemigrations --check --dry-run`;
+- 10 pruebas dirigidas de Gestión y cobros, incluyendo revisión/confirmación de la
+  pantalla y generación del PDF;
+- `git diff --check` (solo informó conversiones de finales de línea de Windows).
+
+La siguiente etapa todavía no está implementada: emisión de cuotas con vista previa,
+tarifas con vigencia, seguimiento de cobranzas, conciliación bancaria, portal del
+socio y tareas periódicas de habilitación. El plan conserva sus contratos y criterios
+para retomarlos sin mezclar datos ni permisos.
+
+La entrega previa de ECC 2.2.2 pasó su diagnóstico de caché, validación de skill y
+comprobaciones de documentación el 30 de septiembre. Ver detalles y límites en
+[ECC_INTEGRATION.md](ECC_INTEGRATION.md); la continuidad mediante estos archivos no
+depende de autorizar hooks del plugin.
 
 ## Decisiones que deben conservarse
 
@@ -59,10 +77,10 @@ con el usuario; las ideas de abajo siguen pendientes de solicitud.
 Underground y validar observaciones reales de sus API. La disponibilidad de las
 estaciones debe comprobarse en ese momento.
 
-**Ideas conversadas, sin implementación solicitada:** ficha unificada del socio,
-cobro simplificado y panel de tareas pendientes; después, portal del socio,
-conciliación de transferencias, tarifas por vigencia y gestión de perchas o reservas.
-Retomar solo la funcionalidad que el usuario elija.
+**Gestión:** primera entrega implementada en la rama indicada. Portal del socio,
+conciliación, perchas, reservas, préstamos y reportes quedan como evolución posterior.
+Antes del despliegue se debe ejecutar el procedimiento de migración del proyecto y
+configurar los datos reales del club mediante variables de entorno.
 
 ## Cómo actualizar este registro
 

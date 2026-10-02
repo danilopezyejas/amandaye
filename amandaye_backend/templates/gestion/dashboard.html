@@ -1,0 +1,27 @@
+{% extends "gestion/base.html" %}
+{% block gestion_content %}
+<div class="gestion-actions">
+  {% if can_socios %}<a class="button" href="{% url 'gestion:buscar_socios' %}">Buscar socio</a>{% endif %}
+  <a href="{% url 'admin:index' %}">Volver al administrador</a>
+</div>
+<div class="gestion-grid">
+  {% if can_socios %}
+  <section class="gestion-card"><h2>Solicitudes por revisar</h2>
+    {% if solicitudes %}<ul>{% for socio in solicitudes %}<li><a href="{% url 'gestion:ficha_socio' socio.numero %}">Socio {{ socio.numero }}</a> · {{ socio.fechaSolicitud|date:'d/m/Y'|default:'sin fecha' }}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay solicitudes pendientes.</p>{% endif %}
+  </section>
+  {% endif %}
+  {% if can_cuentas %}
+  <section class="gestion-card"><h2>Pagos con saldo</h2>
+    {% if pagos_sin_aplicar %}<ul>{% for pago in pagos_sin_aplicar %}<li><a href="{% url 'gestion:ficha_socio' pago.cuenta.socio_titular.numero %}">Pago {{ pago.pk }}</a> · <span class="gestion-money">$ {{ pago.saldo_sin_aplicar|floatformat:2 }}</span></li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay pagos sin aplicar.</p>{% endif %}
+  </section>
+  <section class="gestion-card"><h2>Deuda vencida</h2>
+    {% if deudas_vencidas %}<ul>{% for cargo in deudas_vencidas %}<li><a href="{% url 'gestion:ficha_socio' cargo.cuenta.socio_titular.numero %}">Socio {{ cargo.cuenta.socio_titular.numero }}</a> · {{ cargo.concepto.nombre }} · vence {{ cargo.fecha_vencimiento|date:'d/m/Y' }}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay cargos vencidos.</p>{% endif %}
+  </section>
+  {% endif %}
+  {% if can_personas %}
+  <section class="gestion-card"><h2>Habilitaciones para revisar</h2>
+    {% if habilitaciones %}<ul>{% for persona in habilitaciones %}<li><a href="{% url 'gestion:ficha_socio' persona.numeroSocio %}">{{ persona.nombre_completo }}</a> · {{ persona.get_estado_habilitacion_display }}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay habilitaciones pendientes.</p>{% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

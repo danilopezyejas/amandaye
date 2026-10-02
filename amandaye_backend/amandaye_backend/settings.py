@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
     "rest_framework", "rest_framework_simplejwt", "rest_framework_simplejwt.token_blacklist",
     "corsheaders", "axes", "amandaye_backend.security.apps.SecurityConfig",
-    "apps.alertas", "apps.brevet", "apps.horarios", "apps.usuarios", "apps.cobranzas",
+    "apps.alertas", "apps.brevet", "apps.horarios", "apps.usuarios", "apps.cobranzas", "apps.gestion",
     "apps.conditions.apps.ConditionsConfig",
 ]
 MIDDLEWARE = [
@@ -112,6 +112,9 @@ if PRODUCTION and any(not origin.startswith("https://") for origin in CORS_ALLOW
     raise ImproperlyConfigured("Production origins must use HTTPS.")
 LOGOUT_REDIRECT_URL = "/"
 LOGIN_REDIRECT_URL = "/admin/"
+CLUB_NAME = os.environ.get("CLUB_NAME", "Club Amandayé Ipeguá")
+CLUB_CURRENCY = os.environ.get("CLUB_CURRENCY", "UYU")
+CLUB_RECEIPT_DETAILS = os.environ.get("CLUB_RECEIPT_DETAILS", "")
 SECURE_SSL_REDIRECT = PRODUCTION
 SESSION_COOKIE_SECURE = PRODUCTION
 CSRF_COOKIE_SECURE = PRODUCTION

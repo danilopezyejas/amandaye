@@ -188,3 +188,10 @@ class AplicacionPago(models.Model):
                     raise ValidationError({'importe_aplicado': f"El importe supera el saldo disponible del pago (${self.pago.saldo_disponible})."})
                 if self.importe_aplicado > self.cargo.saldo_pendiente:
                     raise ValidationError({'importe_aplicado': f"El importe supera el saldo pendiente del cargo (${self.cargo.saldo_pendiente})."})
+
+
+# These additive records live in a separate module to keep the legacy financial
+# tables stable while the new workflow is introduced.
+from .models_operaciones import (  # noqa: E402,F401
+    ComprobantePago, IntencionSaldo, IntencionSaldoPago, OperacionCobro,
+)

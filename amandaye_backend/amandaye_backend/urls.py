@@ -14,7 +14,9 @@ def custom_404(request, exception=None):
 
 
 urlpatterns = [
-    path("", home), path("login/", admin.site.login, name="login"), path("admin/", admin.site.urls),
+    path("", home), path("login/", admin.site.login, name="login"),
+    path("admin/gestion/", include("apps.gestion.urls")),
+    path("admin/", admin.site.urls),
     path("api/token/", LoginView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", RefreshView.as_view(), name="token_refresh"),
     path("api/conditions/", include("apps.conditions.urls")),

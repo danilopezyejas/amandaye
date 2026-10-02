@@ -1,0 +1,27 @@
+{% extends "gestion/base.html" %}
+{% block gestion_content %}
+<div class="gestion-actions"><a href="{% url 'gestion:ficha_socio' socio.numero %}">Volver a la ficha</a><a href="{% url 'gestion:dashboard' %}">Panel</a></div>
+<section class="gestion-card">
+  <h2>Socio {{ socio.numero }} · {{ socio.cedulaTitular }}</h2>
+  <p>La propuesta distribuye el importe entre los cargos pendientes más antiguos. Revísela antes de confirmar.</p>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <div class="gestion-form-grid">
+      {% for field in form %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}
+    </div>
+    {% if propuesta %}
+      <h3>Aplicación sugerida</h3>
+      <table class="gestion-table"><thead><tr><th>Cargo</th><th>Periodo</th><th>Vencimiento</th><th>Saldo</th><th>A aplicar</th></tr></thead><tbody>
+      {% for row in propuesta.filas %}<tr><td>{{ row.concepto }} (#{{ row.cargo_id }})</td><td>{{ row.periodo }}</td><td>{{ row.fecha_vencimiento }}</td><td>$ {{ row.saldo }}</td><td>$ {{ row.importe }}</td></tr>{% empty %}<tr><td colspan="5">No hay cargos pendientes; el importe quedará sin aplicar.</td></tr>{% endfor %}</tbody></table>
+      <p><strong>Saldo que quedará sin aplicar:</strong> $ {{ propuesta.saldo_sin_aplicar }}</p>
+      <input type="hidden" name="version" value="{{ propuesta.version }}">
+      <input type="hidden" name="aplicaciones" value="{{ aplicaciones_json }}">
+      <input type="hidden" name="clave" value="{{ clave }}">
+      <button type="submit" name="confirmar" value="1">Confirmar cobro y emitir comprobante</button>
+    {% else %}
+      <button type="submit">Revisar propuesta</button>
+    {% endif %}
+  </form>
+</section>
+{% endblock %}

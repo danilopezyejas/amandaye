@@ -1,0 +1,8 @@
+{% extends "gestion/base.html" %}
+{% block gestion_content %}
+<div class="gestion-actions"><a href="{% url 'gestion:dashboard' %}">Panel</a><a href="{% url 'admin:index' %}">Administrador</a></div>
+<form method="get" role="search"><label for="id_q">Número, cédula o nombre</label><input id="id_q" name="q" value="{{ query }}" autofocus><button class="button" type="submit">Buscar</button></form>
+{% if query %}<p>{{ page.paginator.count }} resultado{{ page.paginator.count|pluralize }}.</p>{% endif %}
+{% if page.object_list %}<table class="gestion-table"><thead><tr><th>Socio</th><th>Titular</th><th>Estado</th><th>Tipo</th><th>Acción</th></tr></thead><tbody>{% for socio in page.object_list %}<tr><td>{{ socio.numero }}</td><td>{{ socio.cedulaTitular }}</td><td>{{ socio.get_activo_display }}</td><td>{{ socio.get_tipo_socio_display }}</td><td><a href="{% url 'gestion:ficha_socio' socio.numero %}">Abrir ficha</a></td></tr>{% endfor %}</tbody></table>{% elif query %}<p class="gestion-muted">No se encontraron socios.</p>{% else %}<p class="gestion-muted">Escribí un número, cédula o nombre para comenzar.</p>{% endif %}
+{% if page.has_other_pages %}<p class="paginator">{% if page.has_previous %}<a href="?q={{ query|urlencode }}&page={{ page.previous_page_number }}">Anterior</a>{% endif %} Página {{ page.number }} de {{ page.paginator.num_pages }} {% if page.has_next %}<a href="?q={{ query|urlencode }}&page={{ page.next_page_number }}">Siguiente</a>{% endif %}</p>{% endif %}
+{% endblock %}

@@ -8,3 +8,5 @@ django-axes[ipware]>=8,<9
 gunicorn>=23,<26
 whitenoise>=6.9,<7
 redis>=5,<7
+reportlab>=5,<6
+pillow>=9,<13
