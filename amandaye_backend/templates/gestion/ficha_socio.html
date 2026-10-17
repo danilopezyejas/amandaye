@@ -1,9 +1,85 @@
 {% extends "gestion/base.html" %}
 {% block gestion_content %}
-<div class="gestion-actions"><a href="{% url 'gestion:buscar_socios' %}">Nueva búsqueda</a><a href="{% url 'gestion:dashboard' %}">Panel</a><a href="{% url 'admin:index' %}">Administrador</a>{% if can_cobrar and cuenta %}<a class="button" href="{% url 'gestion:nuevo_cobro' socio.numero %}">Registrar cobro</a>{% endif %}</div>
-{% if socio %}<div class="gestion-card"><h2>Socio {{ socio.numero }} · {{ socio.get_activo_display }}</h2><p>Tipo: {{ socio.get_tipo_socio_display }} · Cuota: {{ socio.get_tipo_cuota_display }} · Cédula titular: {{ socio.cedulaTitular }}</p><p>Alta: {{ socio.fechaAlta|date:'d/m/Y'|default:'—' }} · Baja: {{ socio.fechaBaja|date:'d/m/Y'|default:'—' }}</p></div>{% endif %}
-{% if can_personas %}<section class="gestion-card"><h2>Familia y contacto</h2>{% if persona %}<p><strong>{{ persona.PrimerNombre }} {{ persona.PrimerApellido }}</strong> · {{ persona.relacionTitular|default:'Titular' }}</p><p>Correo: {{ persona.Correo|default:'—' }} · Celular: {{ persona.Celular|default:'—' }}</p>{% else %}<p class="gestion-muted">No hay persona titular vinculada.</p>{% endif %}{% if familiares %}<table class="gestion-table"><thead><tr><th>Persona</th><th>Relación</th><th>Habilitación</th></tr></thead><tbody>{% for familiar in familiares %}<tr><td>{{ familiar.PrimerNombre }} {{ familiar.PrimerApellido }}</td><td>{{ familiar.relacionTitular|default:'—' }}</td><td>{{ familiar.get_estado_habilitacion_display }}</td></tr>{% endfor %}</tbody></table>{% endif %}</section>{% endif %}
-{% if can_cuentas %}<section class="gestion-card"><h2>Cuenta corriente</h2>{% if estado %}<p>Estado: <strong>{{ estado.estado_cuenta }}</strong> · Saldo total: <span class="gestion-money">$ {{ estado.saldo_total|floatformat:2 }}</span> · Vencido: <span class="gestion-money">$ {{ estado.deuda_vencida|floatformat:2 }}</span></p><h3>Cargos recientes</h3><table class="gestion-table"><thead><tr><th>Concepto</th><th>Periodo</th><th>Importe</th><th>Estado</th></tr></thead><tbody>{% for cargo in estado.cargos %}<tr><td>{{ cargo.concepto.nombre }}</td><td>{{ cargo.periodo }}</td><td>$ {{ cargo.importe|floatformat:2 }}</td><td>{{ cargo.get_estado_display }}</td></tr>{% empty %}<tr><td colspan="4">Sin cargos.</td></tr>{% endfor %}</tbody></table><h3>Pagos recientes</h3><table class="gestion-table"><thead><tr><th>Fecha</th><th>Medio</th><th>Importe</th><th>Saldo</th><th>Comprobante</th></tr></thead><tbody>{% for pago in estado.pagos %}<tr><td>{{ pago.fecha_pago|date:'d/m/Y' }}</td><td>{{ pago.get_medio_pago_display }}</td><td>$ {{ pago.importe_total|floatformat:2 }}</td><td>$ {{ pago.saldo_disponible|floatformat:2 }}</td><td>{% if pago.comprobante_numero %}<a href="{% url 'gestion:comprobante_pago' pago.pk %}">{{ pago.comprobante_numero }}</a>{% else %}—{% endif %}</td></tr>{% empty %}<tr><td colspan="5">Sin pagos.</td></tr>{% endfor %}</tbody></table>{% else %}<p class="gestion-muted">No hay cuenta corriente.</p>{% endif %}</section>{% endif %}
-{% if can_personas %}<section class="gestion-card"><h2>Embarcaciones</h2>{% if embarcaciones %}<ul>{% for embarcacion in embarcaciones %}<li>{{ embarcacion.nombre }} · {{ embarcacion.tipo }} · {{ embarcacion.color }}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay embarcaciones vinculadas.</p>{% endif %}</section>{% endif %}
-{% if historial %}<section class="gestion-card"><h2>Historial verificable del administrador</h2><table class="gestion-table"><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th></tr></thead><tbody>{% for entry in historial %}<tr><td>{{ entry.action_time|date:'d/m/Y H:i' }}</td><td>{{ entry.user|default:'sistema' }}</td><td>{{ entry.get_action_flag_display }}</td></tr>{% endfor %}</tbody></table></section>{% endif %}
+<nav class="gestion-actions" aria-label="Acciones de la ficha">
+  <a href="{% url 'gestion:buscar_socios' %}">Buscar socio o familiar</a>
+  <a href="{% url 'gestion:dashboard' %}">Panel</a>
+  <a href="{% url 'admin:usuarios_socios_change' socio.numero %}">Ver socio en el administrador</a>
+  {% if can_cobrar and cuenta %}<a class="button" href="{% url 'gestion:nuevo_cobro' socio.numero %}">Registrar cobro</a>{% endif %}
+</nav>
+<section class="gestion-card">
+  <h2>Socio {{ socio.numero }} · {{ socio.get_activo_display }}</h2>
+  <p>Tipo: {{ socio.get_tipo_socio_display }} · Cuota: {{ socio.get_tipo_cuota_display }} · Cédula titular: {{ socio.cedulaTitular }}</p>
+  <p>Solicitud: {{ socio.fechaSolicitud|date:'d/m/Y'|default:'—' }} · Alta: {{ socio.fechaAlta|date:'d/m/Y'|default:'—' }} · Baja: {{ socio.fechaBaja|date:'d/m/Y'|default:'—' }}</p>
+  <p>Percha registrada: {{ socio.percha|default_if_none:'—' }}</p>
+</section>
+<nav class="gestion-actions" aria-label="Secciones de la ficha">
+  {% if can_personas %}<a href="#familia">Familia y contacto</a><a href="#embarcaciones">Embarcaciones</a>{% endif %}
+  {% if can_cuentas %}<a href="#cuenta">Cuenta</a>{% if cuenta %}<a href="#cargos">Cargos</a><a href="#pagos">Pagos</a><a href="#aplicaciones">Aplicaciones</a>{% endif %}{% endif %}
+  <a href="#historial">Historial</a>
+</nav>
+{% for aviso in advertencias %}<p class="gestion-warning" role="status">{{ aviso }}</p>{% endfor %}
+{% if can_personas %}
+<section id="familia" class="gestion-card">
+  <h2>Familia, contacto y habilitaciones</h2>
+  {% if persona %}<p><strong>Titular: {{ persona.PrimerNombre }} {{ persona.PrimerApellido }}</strong></p>{% endif %}
+  <div class="gestion-scroll" tabindex="0" role="region" aria-label="Integrantes de la familia">
+  <table class="gestion-table"><thead><tr><th>Persona</th><th>Relación</th><th>Contacto</th><th>Habilitación registrada</th><th>Último cálculo</th><th>Ficha</th></tr></thead><tbody>
+    {% for familiar in familiares %}<tr>
+      <td>{{ familiar.nombre_completo }}<br>{{ familiar.Cedula }}</td>
+      <td>{{ familiar.relacionTitular|default:'—' }}</td>
+      <td>{{ familiar.Correo|default:'Sin correo' }}<br>Celular: {{ familiar.Celular|default:'—' }} · Tel.: {{ familiar.Telefono|default:'—' }}<br>{{ familiar.Direccion|default:'Sin dirección' }}</td>
+      <td>{{ familiar.get_estado_habilitacion_display }}</td>
+      <td>{{ familiar.fecha_ultimo_calculo_habilitacion|date:'d/m/Y H:i'|default:'Sin cálculo registrado' }}</td>
+      <td><a href="{% url 'admin:usuarios_personas_change' familiar.Cedula %}">Ver persona</a></td>
+    </tr>{% empty %}<tr><td colspan="6">No hay integrantes vinculados.</td></tr>{% endfor %}
+  </tbody></table></div>
+  <p class="gestion-muted">Se muestra el último estado guardado. Consultar esta ficha no recalcula habilitaciones.</p>
+</section>
+{% else %}<p class="gestion-muted">No tenés permiso para consultar personas, contactos ni embarcaciones.</p>{% endif %}
+{% if can_cuentas %}
+<section id="cuenta" class="gestion-card">
+  <h2>Cuenta corriente</h2>
+  {% if estado %}
+  <p>Cuenta {{ cuenta.pk }} · {{ cuenta.get_estado_display }} · Situación: {{ estado.estado_cuenta }}</p>
+  <div class="gestion-grid">
+    <p>Deuda total<br><strong class="gestion-money">$ {{ estado.saldo_total|floatformat:2 }}</strong></p>
+    <p>Deuda vencida<br><strong class="gestion-money">$ {{ estado.deuda_vencida|floatformat:2 }}</strong></p>
+    <p>Pagos sin aplicar<br><strong class="gestion-money">$ {{ estado.saldo_sin_aplicar|floatformat:2 }}</strong></p>
+  </div>
+  <p class="gestion-muted">Los pagos sin aplicar no se descuentan de la deuda hasta registrar su aplicación. Los totales incluyen todas las páginas.</p>
+  {% else %}<p>No hay cuenta corriente. Consultar la ficha no crea una cuenta.</p>{% endif %}
+</section>
+{% if cuenta %}
+<section id="cargos" class="gestion-card">
+  <h2>Cargos</h2>
+  <div class="gestion-scroll" tabindex="0" role="region" aria-label="Cargos de la cuenta"><table class="gestion-table"><thead><tr><th>Número</th><th>Concepto y periodo</th><th>Emisión</th><th>Vencimiento</th><th>Importe</th><th>Pendiente</th><th>Estado</th></tr></thead><tbody>
+  {% for cargo in cargos_page %}<tr><td>{{ cargo.pk }}</td><td>{{ cargo.concepto.nombre }} · {{ cargo.periodo }}</td><td>{{ cargo.fecha_emision|date:'d/m/Y' }}</td><td>{{ cargo.fecha_vencimiento|date:'d/m/Y' }}</td><td>$ {{ cargo.importe|floatformat:2 }}</td><td>$ {{ cargo.saldo_lectura|floatformat:2 }}</td><td>{{ cargo.get_estado_display }}</td></tr>{% empty %}<tr><td colspan="7">Sin cargos.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include 'gestion/paginacion.html' with page=cargos_page etiqueta='cargos' %}
+</section>
+<section id="pagos" class="gestion-card">
+  <h2>Pagos</h2>
+  <div class="gestion-scroll" tabindex="0" role="region" aria-label="Pagos de la cuenta"><table class="gestion-table"><thead><tr><th>Número</th><th>Fecha</th><th>Medio</th><th>Importe</th><th>Sin aplicar</th>{% if can_comprobantes %}<th>Comprobante</th>{% endif %}</tr></thead><tbody>
+  {% for pago in pagos_page %}<tr><td>{{ pago.pk }}</td><td>{{ pago.fecha_pago|date:'d/m/Y' }}</td><td>{{ pago.get_medio_pago_display }}</td><td>$ {{ pago.importe_total|floatformat:2 }}</td><td>$ {{ pago.saldo_lectura|floatformat:2 }}</td>{% if can_comprobantes %}<td>{% if pago.comprobante_numero %}<a href="{% url 'gestion:comprobante_pago' pago.pk %}">{{ pago.comprobante_numero }}</a>{% else %}Sin comprobante registrado{% endif %}</td>{% endif %}</tr>{% empty %}<tr><td colspan="6">Sin pagos.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include 'gestion/paginacion.html' with page=pagos_page etiqueta='pagos' %}
+</section>
+<section id="aplicaciones" class="gestion-card">
+  <h2>Aplicaciones y reversiones</h2>
+  <div class="gestion-scroll" tabindex="0" role="region" aria-label="Aplicaciones de pagos"><table class="gestion-table"><thead><tr><th>Aplicación</th><th>Pago → Cargo</th><th>Importe</th><th>Registro</th><th>Estado</th><th>Reversión</th></tr></thead><tbody>
+  {% for app in aplicaciones_page %}<tr><td>{{ app.pk }}</td><td>{{ app.pago_id }} → {{ app.cargo_id }}</td><td>$ {{ app.importe_aplicado|floatformat:2 }}</td><td>{{ app.created_at|date:'d/m/Y H:i' }} · {{ app.registrado_por|default:'Actor no registrado' }}</td><td>{{ app.get_estado_display }}</td><td>{% if app.fecha_reversion %}{{ app.fecha_reversion|date:'d/m/Y H:i' }} · {{ app.revertido_por|default:'Actor no registrado' }}{% else %}—{% endif %}</td></tr>{% empty %}<tr><td colspan="6">Sin aplicaciones.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include 'gestion/paginacion.html' with page=aplicaciones_page etiqueta='aplicaciones' %}
+</section>
+{% endif %}
+{% else %}<p class="gestion-muted">No tenés permiso para consultar la cuenta ni los movimientos financieros.</p>{% endif %}
+{% if can_personas %}<section id="embarcaciones" class="gestion-card"><h2>Embarcaciones</h2><ul>{% for embarcacion in embarcaciones %}<li>#{{ embarcacion.numero }} · {{ embarcacion.nombre }} · {{ embarcacion.tipo }} · {{ embarcacion.color }}</li>{% empty %}<li>No hay embarcaciones vinculadas.</li>{% endfor %}</ul></section>{% endif %}
+<section id="historial" class="gestion-card">
+  <h2>Historial del socio</h2>
+  <p class="gestion-muted">Eventos con vínculo verificable al socio y, según tus permisos, a su cuenta. Las transiciones anteriores al registro vinculado pueden estar incompletas. No se atribuyen comentarios antiguos por coincidencias de texto. Cada operación de cobro puede incluir eventos distintos de pago, aplicación y comprobante.</p>
+  <div class="gestion-scroll" tabindex="0" role="region" aria-label="Historial del socio"><table class="gestion-table"><thead><tr><th>Fecha de registro</th><th>Operador</th><th>Fuente</th><th>Acción</th><th>Referencia</th></tr></thead><tbody>
+    {% for evento in historial_page %}<tr><td>{{ evento.h_fecha|date:'d/m/Y H:i' }}</td><td>{{ evento.h_actor|default:'Actor no registrado' }}</td><td>{{ evento.h_fuente }}</td><td>{{ evento.h_accion }}</td><td>{{ evento.h_recurso }}</td></tr>{% empty %}<tr><td colspan="5">No hay eventos atribuibles registrados.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include 'gestion/paginacion.html' with page=historial_page etiqueta='historial' %}
+</section>
 {% endblock %}

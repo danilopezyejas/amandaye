@@ -44,6 +44,45 @@ class GestionViewsTests(TestCase):
             registrado_por=self.user,
         )
 
+    def test_anonymous_visitors_reach_login_from_every_gestion_page(self):
+        routes = (
+            ('gestion:dashboard', []),
+            ('gestion:buscar_socios', []),
+            ('gestion:ficha_socio', [self.socio.pk]),
+            ('gestion:nuevo_cobro', [self.socio.pk]),
+            ('gestion:comprobante_pago', [Pago.objects.get(cuenta=self.cuenta).pk]),
+        )
+        for name, args in routes:
+            with self.subTest(route=name):
+                url = reverse(name, args=args)
+                response = self.client.get(url)
+                self.assertRedirects(response, f'{reverse("login")}?next={url}')
+
+    def test_login_returns_to_gestion_dashboard(self):
+        url = reverse('gestion:dashboard')
+        login = self.client.get(url, follow=True)
+        self.assertEqual(login.status_code, 200)
+        self.assertEqual(login.context['next'], url)
+        response = self.client.post(login.redirect_chain[-1][0], {
+            'username': 'secretaria', 'password': 'test-only', 'next': url,
+        }, follow=True)
+        self.assertRedirects(response, url)
+        self.assertContains(response, 'Gestión diaria')
+        self.assertContains(response, f'href="{url}"')
+
+    def test_gestion_pages_keep_admin_navigation(self):
+        self.client.force_login(self.user)
+        for name, args in (
+            ('gestion:dashboard', []),
+            ('gestion:buscar_socios', []),
+            ('gestion:ficha_socio', [self.socio.pk]),
+            ('gestion:nuevo_cobro', [self.socio.pk]),
+        ):
+            with self.subTest(route=name):
+                response = self.client.get(reverse(name, args=args))
+                self.assertContains(response, f'href="{reverse("gestion:dashboard")}"')
+                self.assertContains(response, 'id="logout-form"')
+
     def test_search_and_ficha_show_related_data(self):
         self.client.force_login(self.user)
         response = self.client.get(reverse('gestion:buscar_socios'), {'q': 'Ana'})
@@ -97,3 +136,45 @@ class GestionViewsTests(TestCase):
         self.assertEqual(pdf.status_code, 200)
         self.assertEqual(pdf['Content-Type'], 'application/pdf')
         self.assertTrue(pdf.content.startswith(b'%PDF'))
+
+
+class GestionAdminEntryTests(TestCase):
+    def setUp(self):
+        self.operator = User.objects.create_user('gestion_entry_test', is_staff=True)
+
+    def test_admin_home_offers_working_entry_for_each_supported_permission(self):
+        for app_label, codename in (
+            ('usuarios', 'view_socios'),
+            ('usuarios', 'view_personas'),
+            ('cobranzas', 'view_cuentacorriente'),
+        ):
+            with self.subTest(permission=codename):
+                self.operator.user_permissions.set([Permission.objects.get(
+                    content_type__app_label=app_label, codename=codename,
+                )])
+                self.client.force_login(self.operator)
+                response = self.client.get(reverse('admin:index'))
+                self.assertContains(response, 'id="gestion-entry"', count=1)
+                self.assertContains(
+                    response,
+                    f'<a class="button" href="{reverse("gestion:dashboard")}">Abrir Gestión diaria</a>',
+                    html=True,
+                )
+                self.assertContains(self.client.get(reverse('gestion:dashboard')), 'Gestión diaria')
+
+    def test_admin_home_hides_entry_without_supported_permissions(self):
+        self.client.force_login(self.operator)
+        response = self.client.get(reverse('admin:index'))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'id="gestion-entry"')
+        self.assertNotContains(response, f'href="{reverse("gestion:dashboard")}"')
+        self.assertEqual(self.client.get(reverse('gestion:dashboard')).status_code, 403)
+
+    def test_superuser_sees_entry_before_model_list(self):
+        self.operator.is_superuser = True
+        self.operator.save(update_fields=['is_superuser'])
+        self.client.force_login(self.operator)
+        response = self.client.get(reverse('admin:index'))
+        self.assertContains(response, 'id="gestion-entry"')
+        html = response.content.decode()
+        self.assertLess(html.index('id="gestion-entry"'), html.index('class="app-'))

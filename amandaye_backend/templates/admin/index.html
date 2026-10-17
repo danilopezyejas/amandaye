@@ -1,0 +1,46 @@
+{% extends "admin/index.html" %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+  .gestion-entry {
+    box-sizing: border-box;
+    padding: 20px;
+    margin-bottom: 24px;
+    border: 1px solid #ccd6e8;
+    border-left: 5px solid #ed6c06;
+    border-radius: 6px;
+    background: #f3f6fc;
+    color: #26354b;
+  }
+  .gestion-entry h2 { margin: 0 0 8px; color: #0f296d; font-size: 1.25rem; }
+  .gestion-entry p { margin: 0 0 16px; font-size: 0.9rem; }
+  .gestion-entry a.button {
+    display: inline-block;
+    padding: 12px 18px;
+    border-radius: 4px;
+    background: #0f296d;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: bold;
+    text-decoration: none;
+  }
+  .gestion-entry a.button:hover { background: #1e489c; }
+  .gestion-entry a.button:focus-visible { outline: 3px solid #ed6c06; outline-offset: 3px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  {% if user.is_active and user.is_staff %}
+    {% if perms.usuarios.view_socios or perms.usuarios.view_personas or perms.cobranzas.view_cuentacorriente %}
+      <section id="gestion-entry" class="gestion-entry" aria-labelledby="gestion-entry-title">
+        <h2 id="gestion-entry-title">Gestión diaria</h2>
+        <p>Consultá fichas de socios, registrá cobros y revisá las tareas pendientes.</p>
+        <a class="button" href="{% url 'gestion:dashboard' %}">Abrir Gestión diaria</a>
+      </section>
+    {% endif %}
+  {% endif %}
+  {% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
+</div>
+{% endblock %}

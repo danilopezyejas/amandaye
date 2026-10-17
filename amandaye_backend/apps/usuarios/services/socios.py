@@ -1,7 +1,7 @@
 import datetime
 from django.db import transaction
 from django.core.exceptions import ValidationError
-from apps.usuarios.models import Socios, Personas, Socios_cambios
+from apps.usuarios.models import Socios, Personas, EventoSocio
 from apps.cobranzas.services.cuentas import crear_cuenta_corriente_para_titular
 from apps.cobranzas.services.cargos import crear_cargo
 from apps.cobranzas.models import ConceptoCobro, CuentaCorriente
@@ -18,19 +18,10 @@ def obtener_siguiente_numero_socio() -> int:
     return ultimo.numero + 1 if ultimo else 1000
 
 
-def _siguiente_id_cambios() -> int:
-    ultimo = Socios_cambios.objects.order_by('-id').first()
-    return ultimo.id + 1 if ultimo else 1
-
-
-def _registrar_cambio(accion: str, comentario: str, usuario=None):
-    """Registra en socios_cambios. El campo accion debe estar en SET('Alta','Baja','Rechazo')."""
-    Socios_cambios.objects.create(
-        id=_siguiente_id_cambios(),
-        fecha=datetime.date.today(),
-        accion=accion,
-        comentario=(f"[actor:{usuario.pk}] {comentario}" if usuario else comentario),
-    )
+def _registrar_cambio(socio, accion: str, comentario: str, usuario=None):
+    # The caller's transaction commits the state and its event together.
+    # Auto-generated IDs avoid the legacy max(id)+1 race across members.
+    EventoSocio.objects.create(socio=socio, actor=usuario, accion=accion, detalle=comentario)
 
 
 def _calcular_edad(fecha_nacimiento: datetime.date) -> int:
@@ -176,7 +167,7 @@ def crear_solicitud_socio(datos_titular: dict, datos_familiares: list = None) ->
         cedulaTitular=datos_titular["Cedula"],
     )
 
-    _registrar_cambio("Alta", f"[SOLICITUD INGRESO] Socio {numero_socio} registrado en estado PENDIENTE.")
+    _registrar_cambio(socio, EventoSocio.Accion.SOLICITUD, f"[SOLICITUD INGRESO] Socio {numero_socio} registrado en estado PENDIENTE.")
     return socio
 
 
@@ -274,7 +265,7 @@ def aprobar_socio(socio: Socios, generar_cargos_iniciales: bool = True, usuario=
             )
 
     _registrar_cambio(
-        "Alta",
+        socio, EventoSocio.Accion.APROBACION,
         f"[APROBADO] Socio {socio.numero} dado de ALTA. Cuenta {cuenta.id} generada.",
         usuario=usuario,
     )
@@ -306,7 +297,7 @@ def rechazar_socio(socio: Socios, motivo: str = "Solicitud rechazada", usuario=N
     socio.fechaAlta = None  # No tiene alta efectiva
     socio.save()
 
-    _registrar_cambio("Rechazo", f"[RECHAZADO] Socio {socio.numero}: {motivo}", usuario=usuario)
+    _registrar_cambio(socio, EventoSocio.Accion.RECHAZO, f"[RECHAZADO] Socio {socio.numero}: {motivo}", usuario=usuario)
     recalcular_habilitados(socio_id=socio.pk)
     return socio
 
@@ -338,7 +329,7 @@ def dar_baja_socio(socio: Socios, motivo: str = "Baja Administrativa", usuario=N
         cc.fecha_cierre = datetime.date.today()
         cc.save(update_fields=['estado', 'fecha_cierre', 'updated_at'])
 
-    _registrar_cambio("Baja", f"Socio {socio.numero}: {motivo}", usuario=usuario)
+    _registrar_cambio(socio, EventoSocio.Accion.BAJA, f"Socio {socio.numero}: {motivo}", usuario=usuario)
     recalcular_habilitados(socio_id=socio.pk)
     return socio
 
@@ -365,7 +356,7 @@ def reactivar_socio(socio: Socios, motivo: str = "Reactivación administrativa",
 
     crear_cuenta_corriente_para_titular(socio)
 
-    _registrar_cambio("Alta", f"[REACTIVACIÓN] Socio {socio.numero}: {motivo}", usuario=usuario)
+    _registrar_cambio(socio, EventoSocio.Accion.REACTIVACION, f"[REACTIVACIÓN] Socio {socio.numero}: {motivo}", usuario=usuario)
     recalcular_habilitados(socio_id=socio.pk)
     return socio
 
@@ -388,7 +379,7 @@ def cambiar_tipo_cuota(socio: Socios, tipo_cuota: str, motivo: str, usuario=None
     socio.tipo_cuota = tipo_cuota
     socio.save(update_fields=['tipo_cuota'])
     _registrar_cambio(
-        'Alta', f'[TIPO CUOTA] Socio {socio.numero}: {anterior} → {tipo_cuota}. {motivo.strip()}',
+        socio, EventoSocio.Accion.CUOTA, f'[TIPO CUOTA] Socio {socio.numero}: {anterior} → {tipo_cuota}. {motivo.strip()}',
         usuario=usuario,
     )
     recalcular_habilitados(socio_id=socio.pk)

@@ -1,0 +1,7 @@
+{% if page.has_other_pages %}
+<nav class="gestion-actions" aria-label="Páginas de {{ etiqueta }}">
+  {% if page.has_previous %}<a href="{{ page.anterior_url }}">Anterior</a>{% endif %}
+  <span>Página {{ page.number }} de {{ page.paginator.num_pages }} · {{ page.paginator.count }} registros</span>
+  {% if page.has_next %}<a href="{{ page.siguiente_url }}">Siguiente</a>{% endif %}
+</nav>
+{% endif %}

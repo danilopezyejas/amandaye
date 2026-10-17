@@ -237,60 +237,10 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
         }
         color = colores.get(obj.estado_habilitacion, 'gray')
         
-        # Inyectamos el CSS del tooltip directamente aquí para asegurar que se cargue
-        # Solo lo aplicamos a td.delete para evitar duplicados si hay un link adentro
-        css_inline = mark_safe("""
-            .inline-group td.delete { 
-                position: relative !important; 
-                text-align: center !important;
-                vertical-align: middle !important;
-            }
-            .inline-group td.delete input[type="checkbox"] {
-                accent-color: #e74c3c !important;
-                transform: scale(1.5) !important;
-                cursor: pointer !important;
-                margin: 0 !important;
-            }
-            .inline-group td.delete:hover::after {
-                content: "Eliminar este registro" !important;
-                position: absolute !important;
-                bottom: 100% !important;
-                right: 10px !important;
-                background: #c0392b !important;
-                color: #fff !important;
-                padding: 5px 10px !important;
-                border-radius: 4px !important;
-                font-size: 12px !important;
-                white-space: nowrap !important;
-                z-index: 99999 !important;
-                margin-bottom: 8px !important;
-                display: block !important;
-            }
-            /* Triángulo */
-            .inline-group td.delete:hover::before {
-                content: "" !important;
-                position: absolute !important;
-                bottom: 100% !important;
-                right: 25px !important;
-                border: 6px solid transparent !important;
-                border-top-color: #c0392b !important;
-                margin-bottom: -4px !important;
-                z-index: 99999 !important;
-                display: block !important;
-            }
-            .inline-group .delete a, .inline-group .delete label {
-                color: #e74c3c !important;
-                font-weight: bold !important;
-            }
-            /* Estilo para la cruz si es un link */
-            .inline-group .delete a.inline-deletelink {
-                color: #e74c3c !important;
-                font-size: 20px !important;
-                text-decoration: none !important;
-            }
-        </style>
-        """)
-        return format_html('{}{}<span style="color: {}; font-weight: bold;">{}</span>', css_inline, "", color, obj.get_estado_habilitacion_display())
+        return format_html(
+            '<span style="color: {}; font-weight: bold;">{}</span>',
+            color, obj.get_estado_habilitacion_display(),
+        )
 
     @admin.display(description="Vínculo con Socio/Titular")
     def enlace_al_titular(self, obj):

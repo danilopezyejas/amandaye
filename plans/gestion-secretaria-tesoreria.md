@@ -2,9 +2,24 @@
 
 [Documentación](../docs/README.md) · [Continuidad](../docs/CONTINUITY.md) · [Arquitectura](../docs/ARCHITECTURE.md)
 
-**Estado:** propuesta de implementación, revisada el 1 de octubre de 2026. El encargo actual
-es planificar. Ninguna funcionalidad de este documento está implementada por esta entrega.
-Base revisada: `22d4148`, rama `codex/condiciones-rio-scraping`.
+**Estado actualizado al 16 de octubre de 2026:** primera entrega en implementación
+sobre `codex/gestion-secretaria-tesoreria`. El diseño original del 1 de octubre
+se conserva debajo como referencia; sus tablas de propuestas no representan por
+sí solas el estado instalado. Consultar [Continuidad](../docs/CONTINUITY.md) para
+verificaciones y despliegue, y [Gestión](../docs/GESTION.md) para el uso actual.
+
+- **Hito 1 / P03–P04:** búsqueda por familiares y nombres completos, ficha con
+  paginación independiente y saldos separados, e historial de fuentes atribuibles.
+  Migración aditiva `usuarios.0010_eventosocio`; el legado no se reconstruye por texto.
+  Instalado en desarrollo el 16 de octubre: 228 pruebas MySQL satisfactorias,
+  respaldo restaurado y migración aplicada. Revisión visual automática pendiente
+  por indisponibilidad del control de Windows; ver límites en Continuidad.
+- **Hito 2 / P05–P07:** cobro nuevo y PDF disponibles; faltan la pantalla para aplicar
+  un pago existente y editar la distribución propuesta.
+- **Hito 3 / P08:** panel básico disponible; motivos de habilitación, filtros y
+  paginación del panel siguen pendientes.
+- **P09–P12:** piloto, recálculo periódico, tarifas con vigencia, cuotas con vista
+  previa y seguimiento permanecen pendientes.
 
 ## 1. Objetivo y primera entrega
 
@@ -172,7 +187,7 @@ Secretaría. Se mantiene el acceso a cuentas individuales que ya permite su rol.
 ## 6. Secuencia de implementación
 
 Cada fila define un incremento revisable. Dividirlo si excede una PR manejable.
-Los pasos de código están **pendientes**; P01 comienza cuando se decida implementar.
+La siguiente tabla conserva la secuencia original; el estado vigente está al inicio del documento.
 Las referencias de verificación B, M y V están en la sección 8.
 
 | Paso | Entrega | Depende de | Atención principal |

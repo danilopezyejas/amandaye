@@ -11,7 +11,7 @@ from django.urls import reverse
 from apps.cobranzas.models import Cargo, ConceptoCobro, CuentaCorriente
 from apps.cobranzas.services.cuotas import generar_cuotas_mensuales
 from apps.usuarios.admin import SociosAdmin
-from apps.usuarios.models import Personas, Socios, Socios_cambios
+from apps.usuarios.models import Personas, Socios, EventoSocio
 from apps.usuarios.services.habilitacion import _calcular_estado_individual
 from apps.usuarios.services.socios import aprobar_socio, dar_baja_socio, rechazar_socio, reactivar_socio, cambiar_tipo_cuota
 
@@ -93,11 +93,11 @@ class MembershipSecurityTests(TestCase):
         self.socio.refresh_from_db()
         self.assertEqual(self.socio.activo, 1)
         self.assertEqual(Cargo.objects.filter(cuenta__socio_titular=self.socio).count(), 2)
-        self.assertTrue(Socios_cambios.objects.filter(comentario__contains=f'[actor:{self.board.pk}]').exists())
+        self.assertTrue(EventoSocio.objects.filter(socio=self.socio, actor=self.board, accion=EventoSocio.Accion.APROBACION).exists())
 
     def test_closure_failure_rolls_back_member_account_and_audit(self):
         socio = aprobar_socio(self.socio, usuario=self.board)
-        original_logs = Socios_cambios.objects.count()
+        original_logs = EventoSocio.objects.count()
         with patch.object(CuentaCorriente, 'save', side_effect=DatabaseError('synthetic failure')):
             with self.assertRaises(DatabaseError):
                 dar_baja_socio(socio, usuario=self.board)
@@ -105,7 +105,7 @@ class MembershipSecurityTests(TestCase):
         self.assertEqual(socio.activo, 1)
         self.assertIsNone(socio.fechaBaja)
         self.assertEqual(socio.cuenta_corriente.estado, 'ACTIVA')
-        self.assertEqual(Socios_cambios.objects.count(), original_logs)
+        self.assertEqual(EventoSocio.objects.count(), original_logs)
 
     def test_debt_failure_is_never_treated_as_eligible(self):
         persona = Personas(Cedula='synthetic', numeroSocio=self.socio.pk, estado_habilitacion='NO_HABILITADO')
@@ -156,7 +156,7 @@ class MembershipSecurityTests(TestCase):
         self.assertEqual(response.status_code, 302)
         socio.refresh_from_db()
         self.assertEqual(socio.tipo_cuota, 'BECA')
-        self.assertTrue(Socios_cambios.objects.filter(comentario__contains='ANUAL → BECA').exists())
+        self.assertTrue(EventoSocio.objects.filter(detalle__contains='ANUAL → BECA').exists())
         generar_cuotas_mensuales('2027-06')
         charge = Cargo.objects.get(cuenta__socio_titular=socio, periodo='2027-06')
         self.assertEqual(charge.importe, 50)

@@ -111,6 +111,7 @@ CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 if PRODUCTION and any(not origin.startswith("https://") for origin in CORS_ALLOWED_ORIGINS + CSRF_TRUSTED_ORIGINS):
     raise ImproperlyConfigured("Production origins must use HTTPS.")
 LOGOUT_REDIRECT_URL = "/"
+LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/admin/"
 CLUB_NAME = os.environ.get("CLUB_NAME", "Club Amandayé Ipeguá")
 CLUB_CURRENCY = os.environ.get("CLUB_CURRENCY", "UYU")

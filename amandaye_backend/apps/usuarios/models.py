@@ -239,3 +239,24 @@ class Socios_cambios(models.Model):
     class Meta:
         db_table = 'socios_cambios'
         verbose_name_plural = 'Historial de cambios'
+
+
+class EventoSocio(models.Model):
+    """Auditoría atribuible de las transiciones; el legado no se infiere de texto."""
+    class Accion(models.TextChoices):
+        SOLICITUD = 'SOLICITUD', 'Solicitud de ingreso'
+        APROBACION = 'APROBACION', 'Aprobación de socio'
+        RECHAZO = 'RECHAZO', 'Rechazo de solicitud'
+        BAJA = 'BAJA', 'Baja de socio'
+        REACTIVACION = 'REACTIVACION', 'Reactivación de socio'
+        CUOTA = 'CUOTA', 'Cambio de tipo de cuota'
+
+    socio = models.ForeignKey(Socios, on_delete=models.PROTECT, related_name='eventos')
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    fecha = models.DateTimeField(auto_now_add=True)
+    accion = models.CharField(max_length=16, choices=Accion.choices)
+    detalle = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['-fecha', '-pk']
+        indexes = [models.Index(fields=['socio', '-fecha', '-id'], name='evento_socio_fecha_idx')]

@@ -3,9 +3,8 @@ import json
 from decimal import Decimal
 from uuid import uuid4
 
-from django.contrib.admin.models import LogEntry
+from django.contrib import admin, messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import DecimalField, F, Q, Sum, Value
@@ -13,15 +12,15 @@ from django.db.models.functions import Coalesce
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
-from django.contrib import messages
+from django.views.decorators.cache import never_cache
 
 from apps.cobranzas.models import AplicacionPago, Cargo, ComprobantePago, CuentaCorriente, Pago
 from apps.cobranzas.services.cobros import confirmar_cobro, proponer_aplicaciones
 from apps.cobranzas.services.comprobantes import generar_pdf, obtener_comprobante
-from apps.cobranzas.services.cuentas import obtener_estado_cuenta
 from apps.usuarios.models import Embarcaciones, Personas, Socios
 
 from .forms import CobroForm
+from .consultas import paginar, movimientos_cuenta, historial_socio, describir_historial
 
 
 def _puede(request, permiso):
@@ -54,6 +53,7 @@ def dashboard(request):
         raise PermissionDenied
 
     context = {
+        **admin.site.each_context(request),
         'title': 'Gestión diaria',
         'can_socios': _puede(request, 'usuarios.view_socios'),
         'can_personas': _puede(request, 'usuarios.view_personas'),
@@ -87,72 +87,89 @@ def dashboard(request):
 
 
 @login_required
+@never_cache
 def buscar_socios(request):
     if not _puede(request, 'usuarios.view_socios'):
         raise PermissionDenied
-    query = request.GET.get('q', '').strip()
+    query = request.GET.get('q', '').strip()[:100]
+    can_personas = _puede(request, 'usuarios.view_personas')
     socios = Socios.objects.none()
-    if query:
-        names = Personas.objects.filter(
-            Q(Cedula__icontains=query)
-            | Q(PrimerNombre__icontains=query)
-            | Q(SegundoNombre__icontains=query)
-            | Q(PrimerApellido__icontains=query)
-            | Q(SegundoApellido__icontains=query)
-        ).values('Cedula')
-        criteria = Q(cedulaTitular__in=names) | Q(cedulaTitular__icontains=query)
-        if query.isdigit():
+    # MySQL's collation can consider superscript/full-width digits equal to ASCII.
+    query_error = ('Usá dígitos del 0 al 9 para buscar por número o cédula.'
+                   if any(token.isdigit() and not token.isascii() for token in query.split()) else '')
+    if query and not query_error:
+        criteria = Q(cedulaTitular__icontains=query)
+        if query.isascii() and query.isdigit() and len(query) <= 10 and int(query) <= 2147483647:
             criteria |= Q(numero=int(query))
-        socios = Socios.objects.filter(criteria).order_by('numero').distinct()
-    paginator = Paginator(socios, 25)
-    page = paginator.get_page(request.GET.get('page'))
+        if can_personas:
+            personas = Personas.objects.all()
+            for token in query.split():
+                personas = personas.filter(
+                    Q(Cedula__icontains=token) | Q(PrimerNombre__icontains=token)
+                    | Q(SegundoNombre__icontains=token) | Q(PrimerApellido__icontains=token)
+                    | Q(SegundoApellido__icontains=token))
+            criteria |= Q(numero__in=personas.values('numeroSocio'))
+        socios = Socios.objects.filter(criteria).order_by('numero')
+    page = Paginator(socios, 25).get_page(request.GET.get('page'))
+    if can_personas:
+        titulares = {p.Cedula: p for p in Personas.objects.filter(
+            Cedula__in=[s.cedulaTitular for s in page])}
+        for socio in page:
+            titular = titulares.get(socio.cedulaTitular)
+            if titular and titular.numeroSocio == socio.numero:
+                socio.nombre_titular = ' '.join(titular.nombre_completo().split())
     return render(request, 'gestion/buscar_socios.html', {
-        'title': 'Buscar socio', 'query': query, 'page': page,
+        **admin.site.each_context(request), 'title': 'Buscar socio',
+        'query': query, 'page': page, 'can_personas': can_personas, 'query_error': query_error,
     })
 
 
 @login_required
+@never_cache
 def ficha_socio(request, numero):
-    can_socios = _puede(request, 'usuarios.view_socios')
+    if not _puede(request, 'usuarios.view_socios'):
+        raise PermissionDenied
     can_personas = _puede(request, 'usuarios.view_personas')
     can_cuentas = _puede(request, 'cobranzas.view_cuentacorriente')
-    if not (can_socios or can_personas or can_cuentas):
-        raise PermissionDenied
-
-    socio = get_object_or_404(Socios, pk=numero) if can_socios else None
+    socio = get_object_or_404(Socios, pk=numero)
     persona = None
-    familiares = Personas.objects.none()
-    if can_personas and socio:
+    familiares = []
+    advertencias = []
+    if can_personas:
         persona = Personas.objects.filter(Cedula=socio.cedulaTitular).first()
-        familiares = Personas.objects.filter(numeroSocio=socio.numero).order_by('relacionTitular', 'Cedula')
-    cuenta = None
-    estado = None
-    if can_cuentas and socio:
-        cuenta = CuentaCorriente.objects.filter(socio_titular=socio).first()
-        if cuenta:
-            estado = obtener_estado_cuenta(cuenta)
-            estado['cargos'] = list(estado['cargos'][:25])
-            estado['pagos'] = list(estado['pagos'][:25])
-            recibos = dict(ComprobantePago.objects.filter(
-                pago_id__in=[pago.pk for pago in estado['pagos']],
-            ).values_list('pago_id', 'numero'))
-            for pago in estado['pagos']:
-                pago.comprobante_numero = recibos.get(pago.pk)
-    embarcaciones = Embarcaciones.objects.filter(id_socio=numero).order_by('numero') if can_personas else []
-    historial = []
-    if can_socios:
-        socio_type = ContentType.objects.get_for_model(Socios)
-        historial = LogEntry.objects.filter(
-            content_type=socio_type, object_id=str(numero),
-        ).select_related('user').order_by('-action_time')[:25]
-    return render(request, 'gestion/ficha_socio.html', {
-        'title': f'Ficha del socio {numero}', 'socio': socio, 'persona': persona,
-        'familiares': familiares, 'cuenta': cuenta, 'estado': estado,
-        'embarcaciones': embarcaciones, 'historial': historial,
+        if persona and persona.numeroSocio != numero:
+            advertencias.append('El titular figura vinculado a otro grupo. Revisá el vínculo en el administrador.')
+            persona = None
+        elif persona is None:
+            advertencias.append('No hay una persona titular vinculada a esta ficha.')
+        familiares = list(Personas.objects.filter(numeroSocio=numero).order_by('relacionTitular', 'Cedula'))
+    cuenta = CuentaCorriente.objects.filter(socio_titular=socio).first() if can_cuentas else None
+    context = {
+        **admin.site.each_context(request), 'title': f'Ficha del socio {numero}',
+        'socio': socio, 'persona': persona, 'familiares': familiares,
+        'advertencias': advertencias, 'cuenta': cuenta, 'estado': None,
         'can_personas': can_personas, 'can_cuentas': can_cuentas,
-        'can_cobrar': can_cuentas and _puede(request, 'cobranzas.add_pago') and
-        _puede(request, 'cobranzas.puede_aplicar_pago'),
-    })
+        'can_cobrar': can_cuentas and _puede(request, 'cobranzas.add_pago') and _puede(request, 'cobranzas.puede_aplicar_pago'),
+        'can_comprobantes': _puede(request, 'cobranzas.view_pago'),
+        'embarcaciones': Embarcaciones.objects.filter(id_socio=numero).order_by('numero') if can_personas else [],
+    }
+    if cuenta:
+        estado, cargos, pagos = movimientos_cuenta(cuenta)
+        context.update(estado=estado,
+            cargos_page=paginar(request, cargos, 'cargos_page', 'cargos'),
+            pagos_page=paginar(request, pagos, 'pagos_page', 'pagos'),
+            aplicaciones_page=paginar(request, AplicacionPago.objects.filter(
+                pago__cuenta=cuenta, cargo__cuenta=cuenta).select_related(
+                    'registrado_por', 'revertido_por').order_by('-created_at', '-pk'),
+                'aplicaciones_page', 'aplicaciones'))
+        if context['can_comprobantes']:
+            recibos = dict(ComprobantePago.objects.filter(
+                pago_id__in=[p.pk for p in context['pagos_page']]).values_list('pago_id', 'numero'))
+            for pago in context['pagos_page']:
+                pago.comprobante_numero = recibos.get(pago.pk)
+    context['historial_page'] = describir_historial(paginar(
+        request, historial_socio(socio, cuenta, comprobantes=context['can_comprobantes']), 'historial_page', 'historial'))
+    return render(request, 'gestion/ficha_socio.html', context)
 
 
 @login_required
@@ -198,6 +215,7 @@ def nuevo_cobro(request, numero):
             except Exception as exc:
                 form.add_error(None, str(exc))
     return render(request, 'gestion/cobro.html', {
+        **admin.site.each_context(request),
         'title': f'Registrar cobro · Socio {numero}', 'socio': socio,
         'cuenta': cuenta, 'form': form, 'propuesta': propuesta,
         'aplicaciones_json': aplicaciones_json, 'clave': clave,
