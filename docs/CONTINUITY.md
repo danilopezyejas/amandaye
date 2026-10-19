@@ -22,7 +22,7 @@ secretos, volcados de conversaciones ni logs completos.
   [CONDITIONS_HANDOFF.md](CONDITIONS_HANDOFF.md). No interpretar sus fechas ni estados
   de estaciones como resultados actuales.
 
-## Hito 2 — implementación verificada, 2026-10-19
+## Hito 2 — publicado e instalado, 2026-10-19
 
 - Hito 1 publicado el 17 de octubre en `5770514`, rama
   `codex/gestion-secretaria-tesoreria`. Se preservaron fuera del commit los cambios
@@ -50,9 +50,18 @@ secretos, volcados de conversaciones ni logs completos.
   y pestaña cerrados. No se registraron cobros de prueba en la base del club.
 - Guía de uso y estado del plan actualizados. No se ejecutó la suite Vue porque
   el cambio está en servicios y plantillas de Django.
-- Pendiente al redactar: terminar imagen final con la corrección de fecha,
-  comprobarla, actualizar solo backend de desarrollo y publicar el hito 2.
-  Hito 3 y P09–P12 permanecen pendientes, fuera del encargo actual.
+- Publicado en GitHub: `0147aef` sobre `codex/gestion-secretaria-tesoreria`.
+  Imagen final `97cefc7bc097`, con fecha corregida; sus 9 pruebas de pantalla
+  también pasaron dentro del contenedor aislado sin red.
+- Backend de desarrollo recreado con esa imagen. `manage.py check` sin problemas
+  y `migrate --check` satisfactorio; no se aplicaron migraciones ni se cambiaron
+  roles o datos reales. Imagen anterior conservada: `8e5b57dcb881`; respaldo local
+  previo con restauración comprobada disponible. No se eliminaron volúmenes.
+- Al retomar el cierre Docker Desktop estaba detenido; se volvió a iniciar y
+  arrancaron los cuatro servicios existentes. MySQL y Redis saludables. Imagen
+  activa confirmada: `97cefc7bc097`. Login HTTP 200; panel y nueva ruta de aplicación
+  redirigen al login sin sesión y responden HTTP 200 final. Instalación comprobada.
+- Hito 3 y P09–P12 permanecen pendientes, fuera del encargo actual.
 
 ## Hito 1 — instalado, 2026-10-16
 

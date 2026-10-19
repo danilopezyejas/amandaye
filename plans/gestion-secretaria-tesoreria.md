@@ -17,7 +17,8 @@ verificaciones y despliegue, y [Gestión](../docs/GESTION.md) para el uso actual
 - **Hito 2 / P05–P07:** distribución editable, revisión y confirmación del cobro
   con PDF; pantalla para aplicar saldo existente con accesos desde panel y ficha.
   Código verificado: 246 pruebas MySQL y recorrido Chrome con datos sintéticos.
-  Instalación de imagen final en curso; no agrega migraciones.
+  Publicado en `0147aef` e instalado en desarrollo el 19 de octubre;
+  imagen final con 9 pruebas de pantalla adicionales. No agrega migraciones.
 - **Hito 3 / P08:** panel básico disponible; motivos de habilitación, filtros y
   paginación del panel siguen pendientes.
 - **P09–P12:** piloto, recálculo periódico, tarifas con vigencia, cuotas con vista
