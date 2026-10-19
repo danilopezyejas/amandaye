@@ -2,7 +2,7 @@
 
 [Documentación](../docs/README.md) · [Continuidad](../docs/CONTINUITY.md) · [Arquitectura](../docs/ARCHITECTURE.md)
 
-**Estado actualizado al 16 de octubre de 2026:** primera entrega en implementación
+**Estado actualizado al 19 de octubre de 2026:** primera entrega en implementación
 sobre `codex/gestion-secretaria-tesoreria`. El diseño original del 1 de octubre
 se conserva debajo como referencia; sus tablas de propuestas no representan por
 sí solas el estado instalado. Consultar [Continuidad](../docs/CONTINUITY.md) para
@@ -14,8 +14,10 @@ verificaciones y despliegue, y [Gestión](../docs/GESTION.md) para el uso actual
   Instalado en desarrollo el 16 de octubre: 228 pruebas MySQL satisfactorias,
   respaldo restaurado y migración aplicada. Revisión visual automática pendiente
   por indisponibilidad del control de Windows; ver límites en Continuidad.
-- **Hito 2 / P05–P07:** cobro nuevo y PDF disponibles; faltan la pantalla para aplicar
-  un pago existente y editar la distribución propuesta.
+- **Hito 2 / P05–P07:** distribución editable, revisión y confirmación del cobro
+  con PDF; pantalla para aplicar saldo existente con accesos desde panel y ficha.
+  Código verificado: 246 pruebas MySQL y recorrido Chrome con datos sintéticos.
+  Instalación de imagen final en curso; no agrega migraciones.
 - **Hito 3 / P08:** panel básico disponible; motivos de habilitación, filtros y
   paginación del panel siguen pendientes.
 - **P09–P12:** piloto, recálculo periódico, tarifas con vigencia, cuotas con vista

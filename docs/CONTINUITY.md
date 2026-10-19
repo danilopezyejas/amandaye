@@ -22,6 +22,38 @@ secretos, volcados de conversaciones ni logs completos.
   [CONDITIONS_HANDOFF.md](CONDITIONS_HANDOFF.md). No interpretar sus fechas ni estados
   de estaciones como resultados actuales.
 
+## Hito 2 — implementación verificada, 2026-10-19
+
+- Hito 1 publicado el 17 de octubre en `5770514`, rama
+  `codex/gestion-secretaria-tesoreria`. Se preservaron fuera del commit los cambios
+  ajenos de configuración de Codex, AGENTS, ECC e índice; conservarlos.
+- Hito 2 implementa distribución editable sobre hasta 100 cargos pendientes,
+  resumen previo y confirmación firmada por operador/cuenta/pago, con vigencia
+  de 30 minutos. Los servicios revalidan permisos, saldos y versión bajo bloqueo;
+  reintentos idénticos no duplican pagos ni aplicaciones.
+- Aplicar saldo disponible desde ficha y panel no exige `add_pago` ni crea otro
+  ingreso. Se conserva el comprobante original; un pago legado sin recibo obtiene
+  uno marcado como reconstruido. La auditoría conserva la operación y aplicaciones.
+- Propuestas calculadas con agregación SQL, sin consultas adicionales por cargo.
+  Se aceptan distribuciones parciales y cargos posteriores al primero. Los importes
+  excesivos, negativos, cargos ajenos, revisiones alteradas o vencidas se rechazan.
+- El 17 de octubre pasaron 246 pruebas SQLite (238 satisfactorias y 8 omitidas
+  de concurrencia) y las **246 pruebas MySQL sin omisiones** en imagen `43d1b16a3d13`.
+  Incluyen tres carreras nuevas: doble confirmación del cobro, gasto simultáneo
+  del mismo saldo y reenvío simultáneo de la misma aplicación. Entorno MySQL retirado.
+- La revisión visual encontró la fecha inicial vacía por formato HTML. Se corrigió
+  a ISO y fecha local del club; las 9 pruebas de pantalla posteriores pasan en
+  SQLite. No cambian modelos: `makemigrations --check --dry-run` sin diferencias.
+- Recorrido Chrome sintético completado el 19: editar distribución, volver a
+  ajustar, confirmar y abrir PDF; luego aplicar el remanente del mismo pago y
+  comprobar saldo cero, aplicaciones e historial. Servidor de prueba en memoria
+  y pestaña cerrados. No se registraron cobros de prueba en la base del club.
+- Guía de uso y estado del plan actualizados. No se ejecutó la suite Vue porque
+  el cambio está en servicios y plantillas de Django.
+- Pendiente al redactar: terminar imagen final con la corrección de fecha,
+  comprobarla, actualizar solo backend de desarrollo y publicar el hito 2.
+  Hito 3 y P09–P12 permanecen pendientes, fuera del encargo actual.
+
 ## Hito 1 — instalado, 2026-10-16
 
 - Encargo vigente: terminar la ficha unificada. Código local en

@@ -12,7 +12,7 @@
   {% endif %}
   {% if can_cuentas %}
   <section class="gestion-card"><h2>Pagos con saldo</h2>
-    {% if pagos_sin_aplicar %}<ul>{% for pago in pagos_sin_aplicar %}<li><a href="{% url 'gestion:ficha_socio' pago.cuenta.socio_titular.numero %}">Pago {{ pago.pk }}</a> · <span class="gestion-money">$ {{ pago.saldo_sin_aplicar|floatformat:2 }}</span></li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay pagos sin aplicar.</p>{% endif %}
+    {% if pagos_sin_aplicar %}<ul>{% for pago in pagos_sin_aplicar %}<li><a href="{% url 'gestion:ficha_socio' pago.cuenta.socio_titular.numero %}">Pago {{ pago.pk }}</a> · <span class="gestion-money">$ {{ pago.saldo_sin_aplicar|floatformat:2 }}</span>{% if can_aplicar %} · <a href="{% url 'gestion:aplicar_saldo_pago' pago.pk %}">Aplicar saldo</a>{% endif %}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay pagos sin aplicar.</p>{% endif %}
   </section>
   <section class="gestion-card"><h2>Deuda vencida</h2>
     {% if deudas_vencidas %}<ul>{% for cargo in deudas_vencidas %}<li><a href="{% url 'gestion:ficha_socio' cargo.cuenta.socio_titular.numero %}">Socio {{ cargo.cuenta.socio_titular.numero }}</a> · {{ cargo.concepto.nombre }} · vence {{ cargo.fecha_vencimiento|date:'d/m/Y' }}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay cargos vencidos.</p>{% endif %}

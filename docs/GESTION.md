@@ -90,17 +90,34 @@ existente. Arrancar el contenedor no aplica migraciones automáticamente.
 
 Desde una ficha con cuenta corriente se puede seleccionar **Registrar cobro**.
 
-1. Ingresar fecha, importe, medio y referencia opcional.
-2. Revisar la propuesta, que distribuye el importe entre cargos pendientes por
-   vencimiento, emisión y número.
+1. Ingresar fecha, importe, medio y referencia opcional; pulsar **Proponer distribución**.
+2. Ajustar el importe de cada cargo. La sugerencia prioriza vencimiento, emisión y
+   número; se puede dejar un cargo en cero para pagar otro posterior.
 3. Si queda saldo sin aplicar, elegir **anticipo** o **pendiente de aplicación**.
-4. Confirmar. El backend registra el pago, aplica los cargos seleccionados en una
-   transacción, guarda la intención del saldo y emite un comprobante interno PDF.
+4. Pulsar **Revisar distribución**. El resumen muestra importes definitivos y saldo
+   restante. **Volver a ajustar** permite corregirlos sin registrar movimientos.
+5. **Confirmar cobro y emitir comprobante** registra el pago y las aplicaciones
+   en una transacción, conserva la intención del saldo y abre el PDF interno.
 
-La pantalla conserva una clave de idempotencia y una versión de la propuesta. Si
-otra operación cambia la cuenta antes de confirmar, el backend rechaza la versión
-vieja para que el operador revise nuevamente. Repetir la misma solicitud no crea
-otro pago.
+La pantalla muestra hasta los primeros 100 cargos pendientes por operación. Si hay
+más, se puede continuar aplicando el saldo restante después. La confirmación tiene
+una vigencia de 30 minutos y queda vinculada al operador, cuenta, pago y datos
+revisados. Si cambia el saldo de un cargo incluido o del pago, se pide revisar otra
+vez. Reenviar la misma confirmación no crea otro pago ni duplica aplicaciones.
+Los importes negativos, excesivos o con más de dos decimales se rechazan.
+
+## Aplicar el saldo de un pago existente
+
+Desde **Pagos con saldo** en el panel, o la sección **Pagos** de una ficha, pulsar
+**Aplicar saldo**. El recorrido permite ajustar la distribución, revisar y confirmar.
+No se registra otro ingreso: se utiliza únicamente el saldo disponible del pago.
+Al terminar se vuelve a la ficha, donde figuran las aplicaciones y su auditoría.
+Un pago sin saldo muestra un aviso y no permite confirmar una nueva aplicación.
+
+El comprobante ya emitido conserva su contenido original, incluso si se aplica
+saldo posteriormente; el historial y la sección Aplicaciones muestran el movimiento
+nuevo. Si un pago histórico todavía no tenía comprobante, se crea uno identificado
+como **reconstruido**, con la información disponible al momento de la aplicación.
 
 Los comprobantes son instantáneas inmutables del pago y sus aplicaciones. El club
 y la moneda se configuran con `CLUB_NAME`, `CLUB_CURRENCY` y
@@ -115,7 +132,9 @@ El panel utiliza permisos existentes:
 - `cobranzas.view_cuentacorriente` para saldos, cargos y propuestas;
 - `cobranzas.add_pago` y `cobranzas.puede_aplicar_pago` para usar el flujo de
   cobro (registrar y aplicar dentro de la misma operación);
-- `cobranzas.view_pago` para descargar comprobantes.
+- `cobranzas.view_pago` para descargar comprobantes y utilizar ambos flujos;
+- aplicar saldo requiere consulta de socio/cuenta/pago y `puede_aplicar_pago`,
+  sin exigir `add_pago` porque no crea un ingreso nuevo.
 
 La interfaz no concede permisos ni permite editar importes históricos. Los datos
 de ejemplo de las pruebas son sintéticos y no representan socios reales.

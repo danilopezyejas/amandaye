@@ -7,6 +7,8 @@ from uuid import UUID
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
+from django.db.models import DecimalField, F, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.cobranzas.models import (
@@ -29,6 +31,10 @@ def _fingerprint(payload):
 
 
 def _application_payload(applications):
+    if applications is not None and not isinstance(applications, (list, tuple)):
+        raise ValidationError('Las aplicaciones deben ser una lista.')
+    if applications and len(applications) > MAX_APPLICATIONS:
+        raise ValidationError(f'No se pueden aplicar más de {MAX_APPLICATIONS} cargos en una operación.')
     rows = []
     for item in applications or []:
         try:
@@ -57,13 +63,18 @@ def _current_proposal(cuenta, importe, *, payment=None):
     queryset = Cargo.objects.filter(
         cuenta=cuenta,
         estado__in=(Cargo.Estado.PENDIENTE, Cargo.Estado.PARCIAL),
-    ).select_related('concepto').prefetch_related('aplicaciones').order_by(
+    ).select_related('concepto').annotate(
+        saldo_propuesta=F('importe') - Coalesce(
+            Sum('aplicaciones__importe_aplicado', filter=Q(aplicaciones__estado=AplicacionPago.Estado.ACTIVA)),
+            Value(Decimal('0.00')), output_field=DecimalField(max_digits=10, decimal_places=2),
+        ),
+    ).filter(saldo_propuesta__gt=0).order_by(
         'fecha_vencimiento', 'fecha_emision', 'pk',
     )
     remaining = validar_importe(importe)
     rows = []
-    for cargo in queryset:
-        saldo = cargo.saldo_pendiente
+    for cargo in queryset[:MAX_APPLICATIONS]:
+        saldo = cargo.saldo_propuesta
         if saldo <= 0:
             continue
         applied = min(remaining, saldo)
@@ -76,8 +87,6 @@ def _current_proposal(cuenta, importe, *, payment=None):
             'importe': str(applied),
         })
         remaining -= applied
-        if remaining <= 0:
-            break
     version = _fingerprint({
         'cuenta': cuenta.pk,
         'pago': payment.pk if payment else None,
@@ -98,6 +107,7 @@ def proponer_aplicaciones(cuenta, importe, pago=None, *, usuario):
         'filas': rows,
         'version': version,
         'saldo_sin_aplicar': remaining,
+        'limite': MAX_APPLICATIONS,
     }
 
 
@@ -138,7 +148,9 @@ def _snapshot(applications):
 def confirmar_cobro(*, cuenta, usuario, clave, fecha_pago, importe_total, medio_pago,
                     referencia='', aplicaciones=None, intencion_saldo=IntencionSaldo.SIN_CLASIFICAR,
                     version=None):
-    _require_user(usuario, 'cobranzas.add_pago')
+    for permission in ('cobranzas.add_pago', 'cobranzas.puede_aplicar_pago',
+                       'cobranzas.view_pago', 'cobranzas.view_cuentacorriente'):
+        _require_user(usuario, permission)
     rows = _application_payload(aplicaciones)
     importe_total = validar_importe(importe_total)
     if not isinstance(fecha_pago, datetime.date):
@@ -168,6 +180,8 @@ def confirmar_cobro(*, cuenta, usuario, clave, fecha_pago, importe_total, medio_
         if Decimal(row['importe']) > Decimal(proposed_by_id[row['cargo_id']]['saldo']):
             raise ValidationError('Una aplicación supera el saldo actual del cargo.')
     total_applied = sum((Decimal(row['importe']) for row in rows), Decimal('0.00'))
+    if total_applied > importe_total:
+        raise ValidationError('La aplicación supera el importe recibido.')
     remaining = importe_total - total_applied
     _validate_intention(intencion_saldo, remaining)
 
@@ -195,7 +209,9 @@ def confirmar_cobro(*, cuenta, usuario, clave, fecha_pago, importe_total, medio_
 @transaction.atomic
 def aplicar_saldo(*, pago, usuario, clave, aplicaciones=None,
                   intencion_saldo=IntencionSaldo.SIN_CLASIFICAR, version=None):
-    _require_user(usuario, 'cobranzas.puede_aplicar_pago')
+    for permission in ('cobranzas.puede_aplicar_pago', 'cobranzas.view_pago',
+                       'cobranzas.view_cuentacorriente'):
+        _require_user(usuario, permission)
     rows = _application_payload(aplicaciones)
     cuenta = CuentaCorriente.objects.select_for_update().get(pk=pago.cuenta_id)
     pago = Pago.objects.select_for_update().get(pk=pago.pk)
@@ -236,5 +252,5 @@ def aplicar_saldo(*, pago, usuario, clave, aplicaciones=None,
         aplicaciones=_snapshot(saved_applications), saldo_final=pago.saldo_disponible,
     )
     from apps.cobranzas.services.comprobantes import emitir_comprobante
-    emitir_comprobante(pago, usuario=usuario)
+    emitir_comprobante(pago, usuario=usuario, reconstruido=True)
     return operation

@@ -1,14 +1,11 @@
 import datetime
-import json
 from decimal import Decimal
-from uuid import uuid4
 
 from django.contrib.auth.models import Permission, User
 from django.test import TestCase
 from django.urls import reverse
 
 from apps.cobranzas.models import Cargo, ConceptoCobro, CuentaCorriente, IntencionSaldo, Pago
-from apps.cobranzas.services.cobros import proponer_aplicaciones
 from apps.usuarios.models import Personas, Socios
 
 
@@ -121,14 +118,16 @@ class GestionViewsTests(TestCase):
         }
         review = self.client.post(url, fields)
         self.assertEqual(review.status_code, 200)
-        self.assertContains(review, 'Confirmar cobro y emitir comprobante')
-
-        proposal = proponer_aplicaciones(self.cuenta, Decimal('25.00'), usuario=self.user)
+        self.assertContains(review, 'Revisar distribución')
+        proposal = review.context['propuesta']
         fields.update({
-            'confirmar': '1', 'version': proposal['version'],
-            'aplicaciones': json.dumps(proposal['filas']), 'clave': str(uuid4()),
+            'revisar': '1', 'version': proposal['version'],
+            'clave': review.context['clave'],
+            **{f"cargo_{row['cargo_id']}": row['importe'] for row in proposal['filas']},
         })
-        confirmed = self.client.post(url, fields)
+        preview = self.client.post(url, fields)
+        self.assertContains(preview, 'Confirmar cobro y emitir comprobante')
+        confirmed = self.client.post(url, {'confirmar': '1', 'revision': preview.context['revision']})
         self.assertEqual(confirmed.status_code, 302)
         pago_id = Pago.objects.latest('pk').pk
         self.assertEqual(confirmed.url, reverse('gestion:comprobante_pago', args=[pago_id]))

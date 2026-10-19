@@ -60,7 +60,7 @@
 <section id="pagos" class="gestion-card">
   <h2>Pagos</h2>
   <div class="gestion-scroll" tabindex="0" role="region" aria-label="Pagos de la cuenta"><table class="gestion-table"><thead><tr><th>Número</th><th>Fecha</th><th>Medio</th><th>Importe</th><th>Sin aplicar</th>{% if can_comprobantes %}<th>Comprobante</th>{% endif %}</tr></thead><tbody>
-  {% for pago in pagos_page %}<tr><td>{{ pago.pk }}</td><td>{{ pago.fecha_pago|date:'d/m/Y' }}</td><td>{{ pago.get_medio_pago_display }}</td><td>$ {{ pago.importe_total|floatformat:2 }}</td><td>$ {{ pago.saldo_lectura|floatformat:2 }}</td>{% if can_comprobantes %}<td>{% if pago.comprobante_numero %}<a href="{% url 'gestion:comprobante_pago' pago.pk %}">{{ pago.comprobante_numero }}</a>{% else %}Sin comprobante registrado{% endif %}</td>{% endif %}</tr>{% empty %}<tr><td colspan="6">Sin pagos.</td></tr>{% endfor %}
+  {% for pago in pagos_page %}<tr><td>{{ pago.pk }}</td><td>{{ pago.fecha_pago|date:'d/m/Y' }}</td><td>{{ pago.get_medio_pago_display }}</td><td>$ {{ pago.importe_total|floatformat:2 }}</td><td>$ {{ pago.saldo_lectura|floatformat:2 }}{% if can_aplicar and pago.saldo_lectura > 0 %}<br><a href="{% url 'gestion:aplicar_saldo_pago' pago.pk %}">Aplicar saldo</a>{% endif %}</td>{% if can_comprobantes %}<td>{% if pago.comprobante_numero %}<a href="{% url 'gestion:comprobante_pago' pago.pk %}">{{ pago.comprobante_numero }}</a>{% else %}Sin comprobante registrado{% endif %}</td>{% endif %}</tr>{% empty %}<tr><td colspan="6">Sin pagos.</td></tr>{% endfor %}
   </tbody></table></div>
   {% include 'gestion/paginacion.html' with page=pagos_page etiqueta='pagos' %}
 </section>
