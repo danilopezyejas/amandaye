@@ -22,6 +22,8 @@
 
 - **Primera instalación:** [inicio rápido](../README.md#inicio-rápido), seguido de
   [puesta en marcha funcional](DEVELOPMENT.md#puesta-en-marcha-funcional).
+- **Secretaría y Tesorería:** [Gestión diaria](GESTION.md) para buscar socios,
+  registrar cobros, aplicar saldos y revisar pendientes.
 - **Cambiar código:** arquitectura, desarrollo y la referencia del módulo afectado.
 - **Administrar un servidor:** despliegue y seguridad; ensayar primero cualquier
   restauración o migración en un entorno separado.
@@ -30,8 +32,9 @@
 ## Planificación activa
 
 - [Gestión de Secretaría y Tesorería](../plans/gestion-secretaria-tesoreria.md):
-  plan por etapas para ficha unificada, cobro y pendientes; incluye tarifas,
-  vista previa de cuotas y seguimiento.
+  hitos 1–3 implementados y publicados. Quedan P09 (piloto y recálculo periódico),
+  tarifas por vigencia, vista previa de cuotas y seguimiento de cobranzas.
+  El diseño original se conserva identificado como referencia histórica.
 
 ## Notas históricas
 

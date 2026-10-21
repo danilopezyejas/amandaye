@@ -7,6 +7,18 @@ Este registro conserva decisiones y próximos pasos entre sesiones. Comprobar si
 verificarse de nuevo cuando sean relevantes. Mantenerlo breve y sin datos personales,
 secretos, volcados de conversaciones ni logs completos.
 
+## Cierre y documentación — 2026-10-21
+
+- Hito 3 publicado en GitHub: `cdcedd8`, rama `codex/gestion-secretaria-tesoreria`.
+  Los hitos 1–3 están implementados; P09–P12 permanecen pendientes.
+- README actualizado con la rama de Gestión, acceso directo, módulo y resumen
+  funcional. Arquitectura describe las consultas, el cobro y el evaluador compartido.
+  Guía e índice actualizados; el plan distingue estado vigente y diseño original.
+- Cambio exclusivamente documental: comprobar enlaces locales, anclas y diff;
+  no requiere repetir suites ni reconstruir servicios. La evidencia de instalación
+  y pruebas del 20 de octubre está debajo; no implica una nueva comprobación en vivo.
+- Conservar las ediciones previas de configuración de Codex, AGENTS y ECC.
+
 ## Estado de referencia — 2026-10-02
 
 - Rama de trabajo: `codex/gestion-secretaria-tesoreria`.

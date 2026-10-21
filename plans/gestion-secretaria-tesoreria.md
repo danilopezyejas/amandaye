@@ -2,7 +2,7 @@
 
 [Documentación](../docs/README.md) · [Continuidad](../docs/CONTINUITY.md) · [Arquitectura](../docs/ARCHITECTURE.md)
 
-**Estado actualizado al 20 de octubre de 2026:** hitos 1–3 implementados
+**Estado actualizado al 21 de octubre de 2026:** hitos 1–3 implementados
 sobre `codex/gestion-secretaria-tesoreria`. El diseño original del 1 de octubre
 se conserva debajo como referencia; sus tablas de propuestas no representan por
 sí solas el estado instalado. Consultar [Continuidad](../docs/CONTINUITY.md) para
@@ -25,9 +25,18 @@ verificaciones y despliegue, y [Gestión](../docs/GESTION.md) para el uso actual
   permisos por sección y diagnóstico de consulta sin escrituras.
   Verificado con 266 pruebas MySQL y recorrido Chrome sintético de filtros y páginas.
   Instalado en desarrollo el 20 de octubre, imagen `7138ae2def3d`, sin migraciones.
-  La lista usa el estado registrado; P09 programará su recálculo.
+  Publicado el 21 de octubre en `cdcedd8`. La lista usa el estado registrado;
+  P09 programará su recálculo.
 - **P09–P12:** piloto, recálculo periódico, tarifas con vigencia, cuotas con vista
   previa y seguimiento permanecen pendientes.
+
+## Cómo leer este plan
+
+El resumen anterior refleja la implementación actual. Las secciones 1–10 conservan
+el diseño y los criterios de aceptación originales, incluidas propuestas ya
+resueltas por los hitos 1–3. No deben interpretarse como una lista actual de funciones
+faltantes ni como instrucciones para activar tareas sobre la base del club.
+La operación vigente se describe en [Gestión diaria](../docs/GESTION.md).
 
 ## 1. Objetivo y primera entrega
 

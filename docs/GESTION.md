@@ -5,6 +5,10 @@ administrador de Django. No reemplaza los servicios financieros existentes: las
 escrituras continúan pasando por sus permisos, transacciones, auditoría y reglas
 de bloqueo.
 
+**Versión documentada:** hitos 1–3 publicados en
+`codex/gestion-secretaria-tesoreria`; hito 3 en `cdcedd8` (21 de octubre de 2026).
+La instalación de desarrollo de esa entrega se verificó el 20 de octubre.
+
 ## Acceso
 
 En desarrollo, el acceso directo es
@@ -68,7 +72,7 @@ accesos a estas últimas respetan sus permisos de edición y alta correspondient
 
 El hito 3 no agrega migraciones ni requiere ejecutar `setup_roles`.
 
-### Ficha unificada
+## Ficha unificada
 
 En **Buscar socio o familiar** se puede ingresar número de socio, cédula o nombres
 completos (incluidos familiares). Los homónimos conservan sus números de socio y
@@ -123,11 +127,13 @@ Como el código se copia durante el build, una imagen anterior a Gestión no inc
 sus rutas ni el enlace del administrador. La actualización requiere reconstruir
 el backend y recrear su contenedor.
 
-Esta entrega también agrega la migración `cobranzas.0009`, con las tablas de
+La versión inicial de Gestión agregó la migración `cobranzas.0009`, con las tablas de
 comprobantes, intención del saldo y operaciones de cobro. Seguir el procedimiento
 de [actualización y recuperación](DEPLOYMENT.md#actualizaciones-y-recuperación),
 incluido el respaldo y la revisión de migraciones, antes de activarla en una base
 existente. Arrancar el contenedor no aplica migraciones automáticamente.
+Los hitos 2 y 3 no agregan migraciones; una instalación anterior debe revisar
+también `usuarios.0010_eventosocio` del hito 1.
 
 ## Registrar un cobro
 
@@ -186,5 +192,6 @@ de ejemplo de las pruebas son sintéticos y no representan socios reales.
 
 La ficha, el cobro y el panel son la primera entrega vertical del plan de
 [Gestión de Secretaría y Tesorería](../plans/gestion-secretaria-tesoreria.md).
-Quedan como trabajo posterior la conciliación de transferencias, vista previa de
+Quedan pendientes el piloto y el recálculo periódico fiable de habilitaciones (P09).
+Como mejoras posteriores se contemplan la conciliación de transferencias, vista previa de
 emisión de cuotas, seguimiento de cobranzas, tarifas con vigencia y reportes.

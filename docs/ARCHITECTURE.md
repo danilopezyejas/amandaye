@@ -29,6 +29,7 @@ En desarrollo, Vite cumple la función de proxy para las rutas del backend.
 | --- | --- | --- |
 | `usuarios` | Personas, socios, solicitudes, estados y habilitación | [Servicios de socios](../amandaye_backend/apps/usuarios/services/socios.py) |
 | `cobranzas` | Cuentas, conceptos, cargos, pagos, aplicaciones, cuotas y auditoría | [Servicios de cobranzas](../amandaye_backend/apps/cobranzas/services/) |
+| `gestion` | Vistas y plantillas internas para ficha, cobro y pendientes; reutiliza servicios del dominio | [Gestión diaria](GESTION.md) |
 | `conditions` | Adquisición, normalización y consolidación meteorológica | [Guía del módulo](CONDITIONS.md) |
 | `security` | Autenticación, configuración segura y tratamiento de errores | [Controles del backend](../amandaye_backend/amandaye_backend/security/) |
 | Frontend | Portada, inscripción, navegación y visualización ambiental | [Código Vue](../amandaye_frontend/src/) |
@@ -65,6 +66,31 @@ Las pruebas con SQLite verifican reglas y permisos. Las garantías de concurrenc
 dependen de MySQL/InnoDB y se comprueban en el
 [entorno de pruebas desechable](DEVELOPMENT.md#concurrencia-con-mysql).
 
+### Gestión diaria
+
+Las rutas `/admin/gestion/` usan sesión Django y permisos por operación. Sus
+[vistas](../amandaye_backend/apps/gestion/views.py) reúnen consultas y formularios;
+las escrituras continúan en los servicios de socios y cobranzas.
+
+- La ficha agrupa datos del grupo familiar y movimientos de cuenta con paginación
+  independiente. El historial combina fuentes atribuibles y `EventoSocio`; no
+  reconstruye vínculos del legado a partir de comentarios libres.
+- El cobro propone una distribución editable y firma la revisión por operador,
+  cuenta y contenido, con vigencia de 30 minutos. La confirmación revalida permisos
+  y saldos bajo bloqueo, conserva la auditoría y evita duplicar reintentos.
+  Aplicar saldo existente no crea otro pago; el comprobante conserva su instantánea.
+- El [panel](../amandaye_backend/apps/gestion/pendientes.py) consulta cuatro listas
+  con filtros, conteos y páginas de 25 registros. No crea cuentas ni movimientos.
+- El [evaluador de habilitación](../amandaye_backend/apps/usuarios/services/habilitacion.py)
+  comparte estado y motivos entre panel, ficha, administrador y recálculo. La
+  preparación de diagnósticos consulta por lote; la política recibe hechos y no
+  accede a la base. Mostrar motivos no persiste cambios de habilitación.
+
+La lista de habilitaciones se filtra por estado registrado, aunque muestre una
+evaluación actual distinta. Programar el recálculo y asegurar su coordinación con
+escrituras concurrentes pertenece a P09; no hay una tarea periódica activada por
+este módulo. Ver [alcance y permisos](GESTION.md).
+
 ### Información meteorológica
 
 El navegador consulta únicamente la API del club. Django obtiene los datos de las
@@ -96,7 +122,7 @@ explícitamente; el arranque del servicio no migra la base.
 
 ## Alcance actual
 
-- La administración interna se concentra en Django Admin y la API; las rutas Vue
+- La administración interna se concentra en Gestión diaria, Django Admin y la API; las rutas Vue
   publicadas son `/` y `/condiciones-del-rio`.
 - El scraping de estaciones es provisional y depende del formato de sus páginas
   públicas. Las API oficiales requieren credenciales propias.

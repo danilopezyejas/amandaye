@@ -4,7 +4,7 @@
 
 Reúne la inscripción de socios, la administración de cuentas corrientes y cobranzas,
 y una página pública con observaciones de estaciones locales y pronóstico. La web
-pública está construida con Vue; la administración interna utiliza Django Admin y
+pública está construida con Vue; la administración interna utiliza pantallas de Gestión diaria, Django Admin y
 una API con permisos por operación.
 
 [Inicio rápido](#inicio-rápido) · [Documentación](docs/README.md) ·
@@ -16,13 +16,30 @@ una API con permisos por operación.
 | Área | Qué permite hacer |
 | --- | --- |
 | Inscripciones y socios | Recibir solicitudes públicas, administrar personas y gestionar aprobación, baja y habilitación. |
+| Gestión diaria | Buscar socios o familiares, consultar la ficha unificada, cobrar con comprobante PDF y resolver pendientes con filtros y paginación. |
 | Cuentas y cobranzas | Registrar cargos y pagos, aplicar pagos, consultar saldos y reportes, generar cuotas y conservar auditoría de anulaciones y reversiones. |
 | Acceso del personal | Asignar permisos mediante los grupos Administrador, Comision Directiva, Secretaria y Tesoreria. |
 | Condiciones del río | Consultar temperatura, viento, presión y lluvia de estaciones locales, su antigüedad y un pronóstico independiente de Open-Meteo. |
 
+### Estado de Gestión diaria
+
+Los hitos 1–3 están implementados y publicados en la rama
+`codex/gestion-secretaria-tesoreria`:
+
+| Hito | Funcionalidad disponible |
+| --- | --- |
+| 1. Ficha unificada | Familia, contacto, cuenta, habilitaciones, embarcaciones e historial, según permisos. |
+| 2. Cobro completo | Distribución editable, revisión y confirmación del pago, protección contra reintentos y comprobante interno PDF. |
+| 3. Panel de pendientes | Solicitudes, pagos con saldo, deuda vencida y motivos de habilitación; filtros y páginas independientes. |
+
+El piloto y el recálculo periódico de habilitaciones (P09), las tarifas por vigencia,
+la vista previa de cuotas y el seguimiento de cobranzas siguen pendientes.
+La consulta de motivos evalúa las condiciones actuales sin guardar el estado.
+Ver la [guía de uso](docs/GESTION.md) y el [plan de evolución](plans/gestion-secretaria-tesoreria.md).
+
 ### Estado de la integración meteorológica
 
-Esta rama, `codex/condiciones-rio-scraping`, incorpora lectura provisional de las
+El módulo incorpora lectura provisional de las
 páginas públicas de Ecowitt y Weather Underground mientras se obtienen las claves
 de sus API. El modo `auto` elige la API cuando la estación tiene todas sus
 credenciales y, en caso contrario, su página pública. La disponibilidad depende
@@ -62,7 +79,7 @@ Los ejemplos usan **PowerShell** y preparan una base nueva. Si ya hay datos que
 conservar, seguir primero [migración de una instalación existente](docs/DEPLOYMENT.md#migrar-una-instalación-con-datos-existentes).
 
 ```powershell
-git clone --branch codex/condiciones-rio-scraping https://github.com/danilopezyejas/amandaye.git
+git clone --branch codex/gestion-secretaria-tesoreria https://github.com/danilopezyejas/amandaye.git
 Set-Location amandaye
 
 $env:AMANDAYE_SECRETS_DIR = (Join-Path (Get-Location) 'secrets/development')
@@ -89,6 +106,7 @@ conserva los valores existentes. En Linux/macOS, ver las
 | Página principal e inscripción | [127.0.0.1:5173](http://127.0.0.1:5173/) |
 | Condiciones del río | [127.0.0.1:5173/condiciones-del-rio](http://127.0.0.1:5173/condiciones-del-rio) |
 | Administración | [127.0.0.1:5173/admin/](http://127.0.0.1:5173/admin/) |
+| Gestión diaria | [127.0.0.1:8000/admin/gestion/](http://127.0.0.1:8000/admin/gestion/) |
 | API ambiental pública | [127.0.0.1:5173/api/conditions/](http://127.0.0.1:5173/api/conditions/) |
 
 La portada incluye un enlace a **Condiciones del río**. MySQL y Redis quedan dentro
@@ -103,6 +121,7 @@ amandaye_backend/
 ├── amandaye_backend/     # Configuración Django y controles de seguridad
 └── apps/
     ├── usuarios/        # Socios, personas, solicitudes y habilitación
+    ├── gestion/         # Ficha unificada, cobros y panel interno de pendientes
     ├── cobranzas/       # Cuentas, cargos, pagos, cuotas y auditoría
     └── conditions/      # Proveedores, normalización, caché y consolidación
 amandaye_frontend/       # Web pública, formularios y página meteorológica
@@ -115,6 +134,7 @@ docs/                   # Guías técnicas y operativas
 
 | Para… | Consultar |
 | --- | --- |
+| Atender socios, cobrar y resolver pendientes | [Gestión diaria](docs/GESTION.md) |
 | Desarrollar, ejecutar pruebas y resolver problemas locales | [Desarrollo](docs/DEVELOPMENT.md) |
 | Entender módulos, flujos y responsabilidades | [Arquitectura](docs/ARCHITECTURE.md) |
 | Integrar clientes y revisar permisos de endpoints | [API](docs/API.md) |
