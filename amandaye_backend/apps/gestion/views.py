@@ -6,11 +6,9 @@ from django.contrib.auth.decorators import login_required
 from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
-from django.db.models import DecimalField, F, Q, Sum, Value
-from django.db.models.functions import Coalesce
+from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 from django.views.decorators.cache import never_cache
 
 from apps.cobranzas.models import AplicacionPago, Cargo, ComprobantePago, CuentaCorriente, Pago
@@ -41,56 +39,21 @@ def _puede_dashboard(request):
     ))
 
 
-def _saldo_pago_expression():
-    aplicadas = Coalesce(
-        Sum(
-            'aplicaciones__importe_aplicado',
-            filter=Q(aplicaciones__estado=AplicacionPago.Estado.ACTIVA),
-        ),
-        Value(Decimal('0.00')),
-        output_field=DecimalField(max_digits=10, decimal_places=2),
-    )
-    return F('importe_total') - aplicadas
-
-
 @login_required
+@never_cache
 def dashboard(request):
     if not _puede_dashboard(request):
         raise PermissionDenied
-
+    from .pendientes import cargar_pendientes
     context = {
-        **admin.site.each_context(request),
-        'title': 'Gestión diaria',
+        **admin.site.each_context(request), 'title': 'Gestión diaria',
         'can_socios': _puede(request, 'usuarios.view_socios'),
         'can_personas': _puede(request, 'usuarios.view_personas'),
         'can_cuentas': _puede(request, 'cobranzas.view_cuentacorriente'),
         'can_aplicar': _puede_aplicar(request),
-        'can_resumen': _puede(request, 'cobranzas.puede_ver_resumen_cobranzas'),
-        'pendientes': [],
+        'can_cobrar': _puede_aplicar(request) and _puede(request, 'cobranzas.add_pago'),
     }
-    if context['can_socios']:
-        context['solicitudes'] = Socios.objects.filter(activo=2).order_by('fechaSolicitud', 'numero')[:10]
-    if context['can_cuentas']:
-        context['pagos_sin_aplicar'] = (
-            Pago.objects.select_related('cuenta__socio_titular')
-            .annotate(saldo_sin_aplicar=_saldo_pago_expression())
-            .filter(saldo_sin_aplicar__gt=0)
-            .order_by('fecha_pago', 'pk')[:10]
-        )
-        context['deudas_vencidas'] = (
-            Cargo.objects.select_related('cuenta__socio_titular', 'concepto')
-            .filter(
-                estado__in=(Cargo.Estado.PENDIENTE, Cargo.Estado.PARCIAL),
-                fecha_vencimiento__lt=timezone.localdate(),
-            )
-            .order_by('fecha_vencimiento', 'pk')[:10]
-        )
-    if context['can_personas']:
-        context['habilitaciones'] = (
-            Personas.objects.filter(estado_habilitacion__in=('NO_HABILITADO', 'SUSPENDIDO'))
-            .order_by('estado_habilitacion', 'numeroSocio', 'Cedula')[:10]
-        )
-    return render(request, 'gestion/dashboard.html', context)
+    return render(request, 'gestion/dashboard.html', cargar_pendientes(request, context))
 
 
 @login_required
@@ -150,6 +113,9 @@ def ficha_socio(request, numero):
         elif persona is None:
             advertencias.append('No hay una persona titular vinculada a esta ficha.')
         familiares = list(Personas.objects.filter(numeroSocio=numero).order_by('relacionTitular', 'Cedula'))
+    if can_personas and can_cuentas:
+        from apps.usuarios.services.habilitacion import preparar_diagnosticos
+        preparar_diagnosticos(familiares)
     cuenta = CuentaCorriente.objects.filter(socio_titular=socio).first() if can_cuentas else None
     context = {
         **admin.site.each_context(request), 'title': f'Ficha del socio {numero}',

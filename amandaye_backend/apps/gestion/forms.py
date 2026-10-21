@@ -76,3 +76,43 @@ class DistribucionForm(forms.Form):
 
     def filas_con_campos(self):
         return [(row, self[f"cargo_{row['cargo_id']}"]) for row in self.filas]
+
+
+class PendientesForm(forms.Form):
+    socio = forms.RegexField(r'^[0-9]{1,10}$', label='Número de socio', required=False)
+    solicitudes_desde = forms.DateField(label='Solicitudes desde', required=False,
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}))
+    solicitudes_hasta = forms.DateField(label='Solicitudes hasta', required=False,
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}))
+    intencion = forms.ChoiceField(label='Pagos: intención del saldo', required=False,
+        choices=[('', 'Todas las intenciones')] + list(IntencionSaldo.choices))
+    vencimiento_hasta = forms.DateField(label='Deuda vencida: vencimiento hasta', required=False,
+        widget=forms.DateInput(format='%Y-%m-%d', attrs={'type': 'date'}))
+    habilitacion = forms.ChoiceField(label='Habilitación registrada', required=False,
+        choices=[('', 'No habilitados y suspendidos'), ('TODOS', 'Todos los estados'),
+                 ('NO_HABILITADO', 'No habilitado'), ('SUSPENDIDO', 'Suspendido'),
+                 ('REVOCADO', 'Revocado'), ('HABILITADO', 'Habilitado')])
+
+    def __init__(self, *args, can_socios, can_cuentas, can_personas, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in ('solicitudes_desde', 'solicitudes_hasta'):
+            if not can_socios:
+                self.fields.pop(name)
+        for name in ('intencion', 'vencimiento_hasta'):
+            if not can_cuentas:
+                self.fields.pop(name)
+        if not can_personas:
+            self.fields.pop('habilitacion')
+
+    def clean_socio(self):
+        value = self.cleaned_data['socio']
+        if value and int(value) > 2147483647:
+            raise forms.ValidationError('El número de socio es demasiado grande.')
+        return int(value) if value else None
+
+    def clean(self):
+        data = super().clean()
+        desde, hasta = data.get('solicitudes_desde'), data.get('solicitudes_hasta')
+        if desde and hasta and desde > hasta:
+            raise forms.ValidationError('La fecha inicial de solicitudes no puede superar la final.')
+        return data

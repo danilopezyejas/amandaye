@@ -28,12 +28,12 @@
       <td>{{ familiar.nombre_completo }}<br>{{ familiar.Cedula }}</td>
       <td>{{ familiar.relacionTitular|default:'—' }}</td>
       <td>{{ familiar.Correo|default:'Sin correo' }}<br>Celular: {{ familiar.Celular|default:'—' }} · Tel.: {{ familiar.Telefono|default:'—' }}<br>{{ familiar.Direccion|default:'Sin dirección' }}</td>
-      <td>{{ familiar.get_estado_habilitacion_display }}</td>
+      <td>{{ familiar.get_estado_habilitacion_display }}{% include "gestion/diagnostico.html" with persona=familiar %}</td>
       <td>{{ familiar.fecha_ultimo_calculo_habilitacion|date:'d/m/Y H:i'|default:'Sin cálculo registrado' }}</td>
       <td><a href="{% url 'admin:usuarios_personas_change' familiar.Cedula %}">Ver persona</a></td>
     </tr>{% empty %}<tr><td colspan="6">No hay integrantes vinculados.</td></tr>{% endfor %}
   </tbody></table></div>
-  <p class="gestion-muted">Se muestra el último estado guardado. Consultar esta ficha no recalcula habilitaciones.</p>
+  <p class="gestion-muted">Se distingue el estado guardado de la evaluación actual. Consultar esta ficha no guarda cambios de habilitación.</p>
 </section>
 {% else %}<p class="gestion-muted">No tenés permiso para consultar personas, contactos ni embarcaciones.</p>{% endif %}
 {% if can_cuentas %}

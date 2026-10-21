@@ -22,6 +22,40 @@ secretos, volcados de conversaciones ni logs completos.
   [CONDITIONS_HANDOFF.md](CONDITIONS_HANDOFF.md). No interpretar sus fechas ni estados
   de estaciones como resultados actuales.
 
+## Hito 3 — verificado e instalado, 2026-10-20
+
+- P08 terminado en `codex/gestion-secretaria-tesoreria`: solicitudes, pagos con
+  saldo, cargos vencidos y habilitaciones con filtros y paginación independiente
+  de 25 registros. Los conteos respetan filtros y permisos; las acciones llevan
+  a ficha, solicitud, cobro o aplicación de saldo según las capacidades del operador.
+- Pagos distinguen anticipo, aplicación pendiente y legado sin clasificar.
+  Deuda muestra saldo neto de aplicaciones activas, excluyendo anulaciones y
+  vencimientos de hoy. No se compensan anticipos automáticamente.
+- Política de habilitación compartida entre panel, ficha, administrador y recálculo:
+  evaluador puro de estado/motivos con adaptador de lectura por lote. Conserva
+  precedencia de revocación/suspensión y usa fecha local del club. Motivos sensibles
+  requieren consulta de personas, socios y cuentas; las consultas no escriben estados.
+- La lista filtra por estado registrado y distingue evaluación actual y último
+  cálculo. Para revisar estados previamente habilitados usar Todos los estados.
+  P09 (recálculo periódico y piloto) y P10–P12 siguen pendientes, fuera de este hito.
+- Verificación con `amandaye-verification`: 266 pruebas SQLite (258 satisfactorias,
+  8 de concurrencia omitidas) y **266 pruebas MySQL satisfactorias, sin omisiones**.
+  Incluyen permisos, saldos activos/revertidos, paginación, filtros inválidos,
+  ausencia de escrituras en GET, consultas acotadas y reglas de habilitación.
+  `makemigrations --check --dry-run` sin cambios. Suite Vue omitida: no cambió Vue.
+- Chrome con base sintética en memoria: panel, motivos, segunda página de pagos
+  (4 de 29) y filtro combinado de socio/anticipos (14 resultados). Capturas revisadas
+  en escritorio y ventana reducida. Pestaña y servidor sintético cerrados.
+  MySQL desechable retirado; no se usaron datos del club para las pruebas.
+- Imagen `7138ae2def3d` instalada en desarrollo; anterior `97cefc7bc097` conservada.
+  Los cuatro servicios están activos, MySQL y Redis saludables. `manage.py check`
+  y `migrate --check` satisfactorios. Login HTTP 200; Gestión redirige al login sin
+  sesión y responde HTTP 200 final. No se aplicaron migraciones ni se cambiaron roles.
+- Guía de Gestión y plan actualizados. Conservar fuera de este commit las ediciones
+  previas de AGENTS, ECC, índice, docs/CODEX.md y .codex, incluida la sección de
+  configuración de Codex de este registro. Siguiente paso: revisión del usuario y
+  acordar P09 antes de implementarlo.
+
 ## Hito 2 — publicado e instalado, 2026-10-19
 
 - Hito 1 publicado el 17 de octubre en `5770514`, rama

@@ -4,24 +4,52 @@
   {% if can_socios %}<a class="button" href="{% url 'gestion:buscar_socios' %}">Buscar socio</a>{% endif %}
   <a href="{% url 'admin:index' %}">Volver al administrador</a>
 </div>
-<div class="gestion-grid">
-  {% if can_socios %}
-  <section class="gestion-card"><h2>Solicitudes por revisar</h2>
-    {% if solicitudes %}<ul>{% for socio in solicitudes %}<li><a href="{% url 'gestion:ficha_socio' socio.numero %}">Socio {{ socio.numero }}</a> · {{ socio.fechaSolicitud|date:'d/m/Y'|default:'sin fecha' }}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay solicitudes pendientes.</p>{% endif %}
-  </section>
-  {% endif %}
-  {% if can_cuentas %}
-  <section class="gestion-card"><h2>Pagos con saldo</h2>
-    {% if pagos_sin_aplicar %}<ul>{% for pago in pagos_sin_aplicar %}<li><a href="{% url 'gestion:ficha_socio' pago.cuenta.socio_titular.numero %}">Pago {{ pago.pk }}</a> · <span class="gestion-money">$ {{ pago.saldo_sin_aplicar|floatformat:2 }}</span>{% if can_aplicar %} · <a href="{% url 'gestion:aplicar_saldo_pago' pago.pk %}">Aplicar saldo</a>{% endif %}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay pagos sin aplicar.</p>{% endif %}
-  </section>
-  <section class="gestion-card"><h2>Deuda vencida</h2>
-    {% if deudas_vencidas %}<ul>{% for cargo in deudas_vencidas %}<li><a href="{% url 'gestion:ficha_socio' cargo.cuenta.socio_titular.numero %}">Socio {{ cargo.cuenta.socio_titular.numero }}</a> · {{ cargo.concepto.nombre }} · vence {{ cargo.fecha_vencimiento|date:'d/m/Y' }}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay cargos vencidos.</p>{% endif %}
-  </section>
-  {% endif %}
-  {% if can_personas %}
-  <section class="gestion-card"><h2>Habilitaciones para revisar</h2>
-    {% if habilitaciones %}<ul>{% for persona in habilitaciones %}<li><a href="{% url 'gestion:ficha_socio' persona.numeroSocio %}">{{ persona.nombre_completo }}</a> · {{ persona.get_estado_habilitacion_display }}</li>{% endfor %}</ul>{% else %}<p class="gestion-muted">No hay habilitaciones pendientes.</p>{% endif %}
-  </section>
-  {% endif %}
-</div>
+<section class="gestion-card">
+  <h2>Filtrar pendientes</h2>
+  <form method="get">{{ filtros.non_field_errors }}
+    <div class="gestion-form-grid">{% for field in filtros %}<div><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{{ field.errors }}</div>{% endfor %}</div>
+    <button type="submit">Aplicar filtros</button> <a href="{% url 'gestion:dashboard' %}">Limpiar filtros</a>
+  </form>
+  <p>Los conteos corresponden a los filtros actuales. Cada lista tiene su propia paginación.</p>
+</section>
+<nav class="gestion-actions" aria-label="Listas de pendientes">
+  {% if can_socios %}<a href="#solicitudes">Solicitudes ({{ solicitudes.paginator.count }})</a>{% endif %}
+  {% if can_cuentas %}<a href="#saldos">Pagos con saldo ({{ pagos_sin_aplicar.paginator.count }})</a><a href="#deudas">Cargos vencidos ({{ deudas_vencidas.paginator.count }})</a>{% endif %}
+  {% if can_personas %}<a href="#habilitaciones">Habilitaciones ({{ habilitaciones.paginator.count }})</a>{% endif %}
+</nav>
+{% if can_socios %}
+<section class="gestion-card" id="solicitudes"><h2>Solicitudes por revisar · {{ solicitudes.paginator.count }}</h2>
+  <ul>{% for socio in solicitudes %}<li><a href="{% url 'gestion:ficha_socio' socio.numero %}">Socio {{ socio.numero }}</a> · {{ socio.fechaSolicitud|date:'d/m/Y'|default:'Sin fecha de solicitud' }} · <a href="{% url 'admin:usuarios_socios_change' socio.numero %}">Ver solicitud</a></li>{% empty %}<li>No hay solicitudes pendientes con estos filtros.</li>{% endfor %}</ul>
+  {% include 'gestion/paginacion.html' with page=solicitudes etiqueta='solicitudes' %}
+</section>
+{% endif %}
+{% if can_cuentas %}
+<section class="gestion-card" id="saldos"><h2>Pagos con saldo · {{ pagos_sin_aplicar.paginator.count }}</h2>
+  <p>Incluye anticipos, aplicaciones pendientes y pagos sin clasificar. No se compensa automáticamente la deuda.</p>
+  <div class="gestion-scroll" tabindex="0" role="region" aria-label="Pagos con saldo"><table class="gestion-table"><thead><tr><th>Pago y socio</th><th>Fecha</th><th>Saldo disponible</th><th>Intención</th><th>Acción</th></tr></thead><tbody>
+  {% for pago in pagos_sin_aplicar %}<tr><td>Pago {{ pago.pk }} · {% if can_socios %}<a href="{% url 'gestion:ficha_socio' pago.cuenta.socio_titular_id %}">Socio {{ pago.cuenta.socio_titular_id }}</a>{% else %}Socio {{ pago.cuenta.socio_titular_id }}{% endif %}</td><td>{{ pago.fecha_pago|date:'d/m/Y' }}</td><td>$ {{ pago.saldo_sin_aplicar|floatformat:2 }}</td><td>{{ pago.intencion_label }}</td><td>{% if can_aplicar %}<a href="{% url 'gestion:aplicar_saldo_pago' pago.pk %}">Aplicar saldo</a>{% else %}Consulta{% endif %}</td></tr>{% empty %}<tr><td colspan="5">No hay pagos sin aplicar con estos filtros.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include 'gestion/paginacion.html' with page=pagos_sin_aplicar etiqueta='pagos con saldo' %}
+</section>
+<section class="gestion-card" id="deudas"><h2>Deuda vencida · {{ deudas_vencidas.paginator.count }} cargos</h2>
+  <p>Cargos con saldo pendiente vencidos antes de hoy; los importes ya aplicados se descuentan.</p>
+  <div class="gestion-scroll" tabindex="0" role="region" aria-label="Cargos vencidos"><table class="gestion-table"><thead><tr><th>Socio y cargo</th><th>Concepto</th><th>Vencimiento</th><th>Saldo pendiente</th><th>Acción</th></tr></thead><tbody>
+  {% for cargo in deudas_vencidas %}<tr><td>{% if can_socios %}<a href="{% url 'gestion:ficha_socio' cargo.cuenta.socio_titular_id %}">Socio {{ cargo.cuenta.socio_titular_id }}</a>{% else %}Socio {{ cargo.cuenta.socio_titular_id }}{% endif %} · #{{ cargo.pk }}</td><td>{{ cargo.concepto.nombre }} · {{ cargo.periodo }}</td><td>{{ cargo.fecha_vencimiento|date:'d/m/Y' }}</td><td>$ {{ cargo.saldo_pendiente_panel|floatformat:2 }}</td><td>{% if can_cobrar %}<a href="{% url 'gestion:nuevo_cobro' cargo.cuenta.socio_titular_id %}">Registrar cobro</a>{% else %}Consulta{% endif %}</td></tr>{% empty %}<tr><td colspan="5">No hay cargos vencidos con estos filtros.</td></tr>{% endfor %}
+  </tbody></table></div>
+  {% include 'gestion/paginacion.html' with page=deudas_vencidas etiqueta='cargos vencidos' %}
+</section>
+{% endif %}
+{% if can_personas %}
+<section class="gestion-card" id="habilitaciones"><h2>Habilitaciones para revisar · {{ habilitaciones.paginator.count }}</h2>
+  <p>La lista y el filtro usan el estado registrado. Los motivos se evalúan a fecha {{ fecha_evaluacion|date:'d/m/Y' }} sin guardar cambios. El recálculo periódico queda pendiente.</p>
+  {% for persona in habilitaciones %}
+  <article class="gestion-card"><h3>{{ persona.nombre_completo }} · Socio {{ persona.numeroSocio }}</h3>
+    <p>Estado registrado: <strong>{{ persona.get_estado_habilitacion_display }}</strong> · Último cálculo: {{ persona.fecha_ultimo_calculo_habilitacion|date:'d/m/Y H:i'|default:'Sin cálculo registrado' }}</p>
+    {% include 'gestion/diagnostico.html' %}
+    <div class="gestion-actions"><a href="{% url 'admin:usuarios_personas_change' persona.pk %}">Ver persona</a>{% if can_socios and persona.socio_existe %}<a href="{% url 'gestion:ficha_socio' persona.numeroSocio %}">Ver ficha del socio</a>{% endif %}</div>
+  </article>
+  {% empty %}<p>No hay habilitaciones con estos filtros.</p>{% endfor %}
+  {% include 'gestion/paginacion.html' with page=habilitaciones etiqueta='habilitaciones' %}
+</section>
+{% endif %}
 {% endblock %}

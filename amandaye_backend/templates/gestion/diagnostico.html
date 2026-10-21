@@ -1,0 +1,8 @@
+{% if persona.diagnostico %}
+<p><strong>Evaluación actual: {{ persona.diagnostico.estado_label }}</strong> · {{ persona.diagnostico.fecha|date:'d/m/Y' }}</p>
+{% if persona.diagnostico.difiere %}<p class="gestion-warning">La evaluación difiere del estado registrado. Esta consulta no guarda cambios.</p>{% endif %}
+<ul>{% for codigo, texto, tipo in persona.diagnostico.motivos %}<li><strong>{{ tipo }}:</strong> {{ texto }}
+{% if codigo == 'PROFESOR' and perms.usuarios.change_personas and perms.usuarios.add_aprobacionprofesor %}<a href="{% url 'admin:usuarios_personas_change' persona.pk %}">Revisar aprobación</a>{% endif %}
+{% if codigo == 'AVAL' and perms.usuarios.change_personas and perms.usuarios.add_avalcomisiondirectiva %}<a href="{% url 'admin:usuarios_personas_change' persona.pk %}">Revisar aval</a>{% endif %}
+</li>{% empty %}<li>Cumple las condiciones actuales.</li>{% endfor %}</ul>
+{% else %}<p class="gestion-muted">Consultar motivos requiere permisos de consulta de socios y cuentas.</p>{% endif %}

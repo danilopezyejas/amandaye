@@ -18,59 +18,79 @@ def _get_ultimos_tres_periodos(hoy: datetime.date):
         d = d.replace(day=1) - datetime.timedelta(days=1)
     return periodos
 
-def _calcular_estado_individual(persona, socio, hoy) -> str:
-    # 1. Revocado
-    if persona.estado_habilitacion == 'REVOCADO':
-        return 'REVOCADO'
+def evaluar_condiciones(*, revocado, socio_existe, activo=False, temporada=False,
+                        nacimiento=None, fecha_base=None, aprobacion=False, aval=False,
+                        cargos=(), hoy):
+    """Pure policy: primitive facts in, state and ordered reason codes out; no IO."""
+    if revocado:
+        return {'estado': 'REVOCADO', 'motivos': [('REVOCADO', 'Habilitación revocada; requiere revisión de Comisión Directiva.', 'Revisión')]}
+    if not socio_existe:
+        return {'estado': 'NO_HABILITADO', 'motivos': [('SIN_SOCIO', 'No existe un socio vinculado a este número.', 'Datos')]}
+    periodos = set(_get_ultimos_tres_periodos(hoy))
+    recientes = [(periodo, estado) for periodo, estado in cargos if periodo in periodos]
+    if len({periodo for periodo, _ in recientes}) == 3 and all(
+            estado in (Cargo.Estado.PENDIENTE, Cargo.Estado.PARCIAL) for _, estado in recientes):
+        return {'estado': 'SUSPENDIDO', 'motivos': [('DEUDA', 'Cargos pendientes en los tres últimos períodos, incluido el actual.', 'Cuenta')]}
+    motivos = []
+    if not activo:
+        motivos.append(('SOCIO_INACTIVO', 'El socio no está en ALTA.', 'Socio'))
+    if temporada:
+        motivos.append(('TEMPORADA', 'La cuota de temporada no otorga habilitación permanente.', 'Cuota'))
+    if nacimiento is None:
+        motivos.append(('SIN_NACIMIENTO', 'Falta la fecha de nacimiento.', 'Datos'))
+    elif _calcular_edad(nacimiento, hoy) < 18:
+        motivos.append(('EDAD', 'Debe cumplir 18 años.', 'Espera por edad'))
+    if fecha_base is None:
+        motivos.append(('SIN_ALTA', 'Falta la fecha de alta o aprobación.', 'Datos'))
+    elif (hoy - fecha_base).days < 365:
+        motivos.append(('ANTIGUEDAD', 'Debe completar 365 días desde el alta actual.', 'Espera por antigüedad'))
+    if not aprobacion:
+        motivos.append(('PROFESOR', 'Falta aprobación de profesor válida para el alta y grupo actuales.', 'Aprobación'))
+    if not aval:
+        motivos.append(('AVAL', 'Falta aval activo de Comisión Directiva.', 'Aval'))
+    return {'estado': 'NO_HABILITADO' if motivos else 'HABILITADO', 'motivos': motivos}
 
-    if not socio:
-        return 'NO_HABILITADO'
 
-    # 2. Suspendido
-    try:
-        cuenta = getattr(socio, 'cuenta_corriente', None)
-        if cuenta:
-            periodos = _get_ultimos_tres_periodos(hoy)
-            cargos = list(cuenta.cargos.all())
-            cargos_en_periodos = [c for c in cargos if c.periodo in periodos]
-            
-            periodos_con_cargo = set(c.periodo for c in cargos_en_periodos)
-            
-            if len(periodos_con_cargo) == 3:
-                todos_adeudados = all(c.estado in [Cargo.Estado.PENDIENTE, Cargo.Estado.PARCIAL] for c in cargos_en_periodos)
-                if todos_adeudados:
-                    return 'SUSPENDIDO'
-    except CuentaCorriente.DoesNotExist:
-        pass  # A pending application may not have an account yet.
-
-    # 3. Habilitado
-    cond_a = socio.activo == 1
-    cond_b = socio.tipo_cuota != 'TEMPORADA'
-    cond_c = _calcular_edad(persona.FechaNacimiento, hoy) >= 18
-    
+def evaluar_habilitacion(persona, socio, hoy):
+    """Read existing relationships; never saves or infers historical approvals."""
+    if persona.estado_habilitacion == 'REVOCADO' or socio is None:
+        return evaluar_condiciones(revocado=persona.estado_habilitacion == 'REVOCADO',
+                                   socio_existe=socio is not None, hoy=hoy)
+    cuenta = getattr(socio, 'cuenta_corriente', None)
+    cargos = [(c.periodo, c.estado) for c in cuenta.cargos.all()] if cuenta else []
     fecha_base = socio.fechaAlta or socio.fechaAprobacion
+    return evaluar_condiciones(
+        revocado=False, socio_existe=True, activo=socio.activo == 1,
+        temporada=socio.tipo_cuota == 'TEMPORADA', nacimiento=persona.FechaNacimiento,
+        fecha_base=fecha_base, hoy=hoy, cargos=cargos,
+        aprobacion=bool(fecha_base and any(ap.fecha >= fecha_base and ap.numero_socio_momento == socio.numero
+                                         for ap in persona.aprobaciones_profesor.all())),
+        aval=any(av.activo for av in persona.avales_cd.all()),
+    )
 
-    cond_d = False
-    if fecha_base:
-        cond_d = (hoy - fecha_base).days >= 365
 
-    cond_e = False
-    if fecha_base:
-        for ap in persona.aprobaciones_profesor.all():
-            if ap.fecha >= fecha_base and ap.numero_socio_momento == socio.numero:
-                cond_e = True
-                break
+def preparar_diagnosticos(personas, hoy=None):
+    """Batch the read-only diagnosis for a page or family, not the entire registry."""
+    from django.db.models import Prefetch, prefetch_related_objects
+    hoy = hoy or timezone.localdate()
+    personas = list(personas)
+    prefetch_related_objects(personas, 'aprobaciones_profesor', 'avales_cd')
+    socios = {s.numero: s for s in Socios.objects.filter(numero__in={p.numeroSocio for p in personas})
+              .select_related('cuenta_corriente').prefetch_related(Prefetch(
+                  'cuenta_corriente__cargos', queryset=Cargo.objects.filter(periodo__in=_get_ultimos_tres_periodos(hoy))))}
+    labels = dict(Personas.ESTADO_HABILITACION)
+    for persona in personas:
+        resultado = evaluar_habilitacion(persona, socios.get(persona.numeroSocio), hoy)
+        persona.diagnostico = {**resultado, 'estado_label': labels[resultado['estado']], 'fecha': hoy,
+                              'difiere': resultado['estado'] != persona.estado_habilitacion}
+    return personas
 
-    cond_f = any(av.activo for av in persona.avales_cd.all())
 
-    if cond_a and cond_b and cond_c and cond_d and cond_e and cond_f:
-        return 'HABILITADO'
-
-    # 4. NO_HABILITADO
-    return 'NO_HABILITADO'
+def _calcular_estado_individual(persona, socio, hoy) -> str:
+    return evaluar_habilitacion(persona, socio, hoy)['estado']
 
 def recalcular_habilitacion_persona(persona: Personas) -> str:
-    hoy = datetime.date.today()
+    hoy = timezone.localdate()
     socio = Socios.objects.filter(numero=persona.numeroSocio).select_related('cuenta_corriente').prefetch_related('cuenta_corriente__cargos').first()
     
     persona = Personas.objects.prefetch_related('aprobaciones_profesor', 'avales_cd').get(Cedula=persona.Cedula)
@@ -84,7 +104,7 @@ def recalcular_habilitacion_persona(persona: Personas) -> str:
     return nuevo_estado
 
 def recalcular_habilitados(socio_id=None) -> dict:
-    hoy = datetime.date.today()
+    hoy = timezone.localdate()
     
     qs_personas = Personas.objects.prefetch_related('aprobaciones_profesor', 'avales_cd')
     if socio_id:

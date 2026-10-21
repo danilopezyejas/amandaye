@@ -2,7 +2,7 @@
 
 [Documentación](../docs/README.md) · [Continuidad](../docs/CONTINUITY.md) · [Arquitectura](../docs/ARCHITECTURE.md)
 
-**Estado actualizado al 19 de octubre de 2026:** primera entrega en implementación
+**Estado actualizado al 20 de octubre de 2026:** hitos 1–3 implementados
 sobre `codex/gestion-secretaria-tesoreria`. El diseño original del 1 de octubre
 se conserva debajo como referencia; sus tablas de propuestas no representan por
 sí solas el estado instalado. Consultar [Continuidad](../docs/CONTINUITY.md) para
@@ -19,8 +19,13 @@ verificaciones y despliegue, y [Gestión](../docs/GESTION.md) para el uso actual
   Código verificado: 246 pruebas MySQL y recorrido Chrome con datos sintéticos.
   Publicado en `0147aef` e instalado en desarrollo el 19 de octubre;
   imagen final con 9 pruebas de pantalla adicionales. No agrega migraciones.
-- **Hito 3 / P08:** panel básico disponible; motivos de habilitación, filtros y
-  paginación del panel siguen pendientes.
+- **Hito 3 / P08:** cuatro listas con filtros, conteos y paginación independiente;
+  intención del saldo y deuda pendiente neta de aplicaciones activas. Motivos de
+  habilitación compartidos entre panel, ficha, administrador y recálculo, con
+  permisos por sección y diagnóstico de consulta sin escrituras.
+  Verificado con 266 pruebas MySQL y recorrido Chrome sintético de filtros y páginas.
+  Instalado en desarrollo el 20 de octubre, imagen `7138ae2def3d`, sin migraciones.
+  La lista usa el estado registrado; P09 programará su recálculo.
 - **P09–P12:** piloto, recálculo periódico, tarifas con vigencia, cuotas con vista
   previa y seguimiento permanecen pendientes.
 

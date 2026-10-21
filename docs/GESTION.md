@@ -25,6 +25,49 @@ entrar por **Acceder** y luego **Abrir Gestión diaria**. El panel muestra:
 - cargos vencidos;
 - habilitaciones que requieren revisión.
 
+## Panel de pendientes
+
+Cada lista tiene páginas independientes de 25 registros. Los conteos incluyen todos
+los resultados de los filtros vigentes; los enlaces de paginación conservan los filtros
+y las páginas de las otras listas. **Limpiar filtros** vuelve a la consulta inicial.
+
+- **Solicitudes:** pendientes de revisión, con filtros por número de socio y rango
+  de fecha de solicitud; accesos a la ficha y al formulario administrativo.
+- **Pagos con saldo:** importe disponible después de descontar aplicaciones activas.
+  Se puede distinguir **anticipo intencional**, **pendiente de aplicación** y
+  **sin clasificar**. Los pagos antiguos sin clasificación pertenecen a esta última
+  categoría. **Aplicar saldo** abre el flujo del hito 2 cuando el operador tiene permisos.
+- **Deuda vencida:** cargos pendientes o parciales con vencimiento anterior a hoy y
+  saldo positivo. Descuenta aplicaciones activas, excluye cargos anulados y permite
+  limitar la fecha de vencimiento. No compensa automáticamente anticipos con deuda.
+- **Habilitaciones:** por defecto incluye estados registrados **No habilitado** y
+  **Suspendido**; permite elegir otro estado o **Todos los estados** y número de socio.
+
+Un filtro inválido muestra el error y deja las listas vacías hasta corregirlo.
+Los permisos controlan tanto las listas como sus conteos, filtros y acciones.
+
+### Motivos de habilitación
+
+El panel, la ficha y el administrador de Personas comparten la misma evaluación
+que utilizan los servicios de recálculo. Muestran el estado registrado, su última
+fecha de cálculo y la evaluación actual con motivos: datos faltantes, estado del
+socio, cuota de temporada, edad, antigüedad, aprobación del profesor, aval o deuda.
+Se conservan las reglas existentes y la precedencia de revocación y suspensión.
+La evaluación utiliza la fecha local del club.
+
+Consultar estas pantallas **no guarda el estado calculado**. Cuando difiere del
+registrado se indica expresamente. El filtro usa el estado registrado: para revisar
+personas previamente habilitadas, seleccionar **Todos los estados**. El recálculo
+periódico sigue pendiente en P09.
+
+Los motivos requieren simultáneamente `usuarios.view_socios`,
+`usuarios.view_personas` y `cobranzas.view_cuentacorriente`, porque pueden revelar
+situación financiera. Sin ellos solo se muestra la información permitida. Edad y
+antigüedad se distinguen de las aprobaciones que puede gestionar un operador; los
+accesos a estas últimas respetan sus permisos de edición y alta correspondientes.
+
+El hito 3 no agrega migraciones ni requiere ejecutar `setup_roles`.
+
 ### Ficha unificada
 
 En **Buscar socio o familiar** se puede ingresar número de socio, cédula o nombres

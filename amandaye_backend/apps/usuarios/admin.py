@@ -153,77 +153,24 @@ class PersonasAdmin(HistorialValoresMixin, admin.ModelAdmin):
             instance.save()
         formset.save_m2m()
 
+    def get_object(self, request, object_id, from_field=None):
+        obj = super().get_object(request, object_id, from_field)
+        if obj and request.user.has_perms(('usuarios.view_socios', 'cobranzas.view_cuentacorriente')):
+            from apps.usuarios.services.habilitacion import preparar_diagnosticos
+            preparar_diagnosticos([obj])
+        return obj
+
     @admin.display(description="Diagnóstico de habilitación")
     def diagnostico_habilitacion(self, obj):
-        import datetime
-        from django.utils.html import format_html, mark_safe
-        from apps.usuarios.models import Socios
-
-        if obj.estado_habilitacion != 'NO_HABILITADO':
-            return "-"
-
-        hoy = datetime.date.today()
-        socio = Socios.objects.filter(numero=obj.numeroSocio).select_related('cuenta_corriente').first()
-
-        faltantes = []
-
-        if not socio:
-            return format_html(
-                '<span style="color:#c0392b;">⚠ No tiene un socio registrado con el número {}.</span>',
-                obj.numeroSocio
-            )
-
-        # cond_a: socio activo (Alta)
-        if socio.activo != 1:
-            estado_label = dict(Socios.ACTIVO_CHOICES).get(socio.activo, socio.activo)
-            faltantes.append(f'El socio no está en ALTA (estado actual: <b>{estado_label}</b>)')
-
-        # cond_b: no es TEMPORADA
-        if socio.tipo_cuota == 'TEMPORADA':
-            faltantes.append('El tipo de cuota es <b>Temporada</b> (no otorga habilitación permanente)')
-
-        # cond_c: mayor de edad
-        if obj.FechaNacimiento:
-            edad = hoy.year - obj.FechaNacimiento.year - (
-                (hoy.month, hoy.day) < (obj.FechaNacimiento.month, obj.FechaNacimiento.day)
-            )
-            if edad < 18:
-                faltantes.append(f'Es menor de edad (<b>{edad} años</b>; se requieren 18)')
-        else:
-            faltantes.append('No tiene fecha de nacimiento registrada')
-
-        # La antigüedad y aprobaciones se calculan desde el inicio del PERIODO ACTUAL (fechaAlta)
-        fecha_base = socio.fechaAlta or socio.fechaAprobacion
-
-        # cond_d: antigüedad >= 365 días desde el alta actual
-        if fecha_base:
-            dias = (hoy - fecha_base).days
-            if dias < 365:
-                faltantes.append(f'Antigüedad insuficiente (<b>{dias} días</b>; se requieren 365 desde el Alta)')
-        else:
-            faltantes.append('No tiene fecha de alta registrada')
-
-        # cond_e: aprobación de profesor post-aprobación
-        tiene_aprobacion = False
-        if fecha_base:
-            for ap in obj.aprobaciones_profesor.all():
-                if ap.fecha >= fecha_base and ap.numero_socio_momento == socio.numero:
-                    tiene_aprobacion = True
-                    break
-        if not tiene_aprobacion:
-            faltantes.append('Falta <b>aprobación de profesor</b> posterior a la fecha de Alta actual')
-
-        # cond_f: aval activo de CD
-        if not any(av.activo for av in obj.avales_cd.all()):
-            faltantes.append('Falta <b>aval activo de Comisión Directiva</b>')
-
-        if not faltantes:
-            return mark_safe('<span style="color: green;">✔ Cumple todas las condiciones — recalcular para actualizar estado.</span>')
-
-        items = ''.join(f'<li style="margin-bottom:4px;">❌ {f}</li>' for f in faltantes)
+        from django.utils.html import format_html, format_html_join
+        diagnostico = getattr(obj, 'diagnostico', None)
+        if not diagnostico:
+            return 'Consultar motivos requiere permisos de consulta de socios y cuentas.'
+        motivos = diagnostico['motivos'] or [('', 'Cumple las condiciones actuales.', 'Resultado')]
         return format_html(
-            '<ul style="margin:0; padding-left:18px; color:#c0392b;">{}</ul>',
-            mark_safe(items)
+            '<p>Evaluación actual: {}. Consulta sin guardar; el estado registrado se muestra por separado.</p><ul>{}</ul>',
+            diagnostico['estado_label'],
+            format_html_join('', '<li>{}: {}</li>', ((tipo, texto) for _, texto, tipo in motivos)),
         )
 
     @admin.display(description="Estado Habilitación", ordering="estado_habilitacion")
