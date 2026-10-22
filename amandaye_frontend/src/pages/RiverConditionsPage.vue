@@ -16,6 +16,12 @@
         <h1 class="text-3xl font-extrabold tracking-tight sm:text-4xl">Condiciones del río</h1>
         <p class="mt-3 text-base text-blue-100">¿Cómo está el río ahora?</p>
       </div>
+      <ContextHelp title="Interpretar las condiciones" :steps="[
+        'Revisá la fuente y la hora de cada observación. Un dato antiguo puede no representar las condiciones actuales.',
+        'Observaciones son mediciones de estaciones; pronóstico es una estimación para las próximas horas.',
+        'Un valor ausente no significa cero. Actualizar solicita datos nuevamente, pero puede reutilizar información en caché.',
+        'La página no informa altura ni corrientes del río y no determina si es seguro navegar.'
+      ]" />
       <ConditionsDashboard :data="data" :loading="loading" :refreshing="refreshing" :error="error" :now="now" @refresh="refresh" />
     </main>
     <footer class="mx-auto max-w-5xl px-4 pb-8 text-sm text-blue-200 sm:px-6">
@@ -25,6 +31,7 @@
 </template>
 
 <script setup lang="ts">
+import ContextHelp from '../components/ContextHelp.vue';
 import { onMounted, onUnmounted } from 'vue';
 import { publicApi } from '../api/axios';
 import ConditionsDashboard from '../components/ConditionsDashboard.vue';

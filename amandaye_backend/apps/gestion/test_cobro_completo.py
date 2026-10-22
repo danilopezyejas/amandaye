@@ -109,7 +109,7 @@ class CobroCompletoViewsTests(TestCase):
         self.assertEqual(csrf.post(url, fields).status_code, 403)
         self.user.user_permissions.remove(Permission.objects.get(codename='view_pago', content_type__app_label='cobranzas'))
         self.assertEqual(self.client.get(url).status_code, 403)
-        self.assertNotContains(self.client.get(reverse('gestion:ficha_socio', args=[self.socio.pk])), 'Aplicar saldo')
+        self.assertNotContains(self.client.get(reverse('gestion:ficha_socio', args=[self.socio.pk])), f'href="{url}"')
 
     def test_back_to_edit_keeps_selected_amounts(self):
         url, fields = self.prepare()

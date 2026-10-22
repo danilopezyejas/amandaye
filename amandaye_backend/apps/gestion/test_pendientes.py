@@ -78,7 +78,7 @@ class PendientesTests(TestCase):
         self.only('usuarios.view_personas')
         response = self.panel()
         self.assertNotIn('pagos_sin_aplicar', response.context)
-        self.assertNotContains(response, 'Pagos con saldo')
+        self.assertNotContains(response, 'id="saldos"')
         self.assertNotContains(response, 'Falta aprobación')
         self.assertNotContains(response, reverse('gestion:ficha_socio', args=[7001]))
         self.assertContains(response, 'Ver persona')

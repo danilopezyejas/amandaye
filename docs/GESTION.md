@@ -29,6 +29,24 @@ entrar por **Acceder** y luego **Abrir Gestión diaria**. El panel muestra:
 - cargos vencidos;
 - habilitaciones que requieren revisión.
 
+## Ayuda dentro de la aplicación
+
+Cada pantalla del administrador muestra **Ayuda: nombre de la sección** antes del
+contenido. Pulsá el control para desplegar una guía y volvé a pulsarlo para cerrarla.
+Podés mantenerla abierta mientras trabajás; no navega a otra página ni guarda datos.
+Hay guías de Gestión diaria, búsqueda, ficha, cobro, aplicación de saldo, Socios,
+Personas, histórico, cuentas, conceptos, cargos, pagos, aplicaciones y acceso.
+Las demás pantallas administrativas tienen orientación general.
+
+Los botones **?** junto a acciones y campos clave explican su efecto, especialmente
+en Usuarios y Cobranzas. Se abren con mouse, foco de teclado o toque; **Escape** los
+cierra. En las acciones masivas, la ayuda cambia según la opción elegida. El botón
+**?** no ejecuta la operación ni envía el formulario. Las guías explican capacidades;
+los permisos del operador siguen determinando cuáles están disponibles.
+
+La portada, inscripción y condiciones del río también incluyen guías desplegables.
+Las guías funcionan sin JavaScript en Django; los tooltips son una mejora adicional.
+
 ## Panel de pendientes
 
 Cada lista tiene páginas independientes de 25 registros. Los conteos incluyen todos

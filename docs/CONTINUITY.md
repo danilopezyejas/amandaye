@@ -7,6 +7,31 @@ Este registro conserva decisiones y próximos pasos entre sesiones. Comprobar si
 verificarse de nuevo cuando sean relevantes. Mantenerlo breve y sin datos personales,
 secretos, volcados de conversaciones ni logs completos.
 
+## Ayuda contextual — 2026-10-21
+
+- Ayuda desplegable integrada en las pantallas Django y guías específicas para
+  Gestión, Usuarios y Cobranzas; orientación general para otros módulos y acceso.
+  La web pública incorpora guías en portada, inscripción y condiciones del río.
+- Tooltips mediante botones de consulta junto a acciones y campos clave, incluidos
+  los nombres del administrador tradicional. Funcionan con mouse, foco y toque;
+  Escape cierra. No envían formularios ni cambian permisos o reglas del dominio.
+- Catálogo Django en `apps/gestion/templatetags/ayuda.py`, interfaz en
+  `templates/gestion/ayuda.html` y `static/ayuda/`; componente Vue `ContextHelp.vue`.
+  Al agregar funciones, mantener guías y el catálogo de acciones/campos actualizado.
+- Verificados 162 tests de Gestión/Usuarios/Cobranzas: 154 satisfactorios y 8
+  omitidos por requerir MySQL. No se modificaron servicios financieros ni modelos;
+  no se repitió concurrencia. Frontend: 28 tests, vue-tsc y build satisfactorios.
+  El build del host requirió salir del aislamiento por acceso de esbuild.
+- Chrome sintético: guía de acceso, panel y Pagos, ayuda en portada, inscripción y
+  condiciones; tooltip con foco/toque y cierre Escape. Corregido el ocultamiento
+  del tooltip durante el desplazamiento provocado por el foco del teclado.
+- La guía de uso describe los controles. No hay nuevas dependencias ni migraciones.
+- Instalado en desarrollo y comprobado el 22 de octubre: backend `9c68fb8ab600`
+  y frontend `4a57c4afcb68`, reutilizando las dependencias de las imágenes previas.
+  Django check satisfactorio y HTTP 200 en login con ayuda y script de tooltips.
+  Los contenedores existentes y sus datos se conservaron; no se aplicaron migraciones.
+  Las pruebas visuales se realizaron con datos sintéticos y sus servidores se cerraron.
+
 ## Cierre y documentación — 2026-10-21
 
 - Hito 3 publicado en GitHub: `cdcedd8`, rama `codex/gestion-secretaria-tesoreria`.

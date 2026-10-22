@@ -15,11 +15,17 @@
             <span v-else>Paso 4: Confirmación</span>
           </p>
         </div>
-        <button @click="$emit('close')" class="p-2 rounded-full bg-white/10 hover:bg-white/25 transition-colors text-white/70 hover:text-white border border-white/10 hover:border-white/30">
+        <button aria-label="Cerrar inscripción" title="Volver a la portada" @click="$emit('close')" class="p-2 rounded-full bg-white/10 hover:bg-white/25 transition-colors text-white/70 hover:text-white border border-white/10 hover:border-white/30">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
       </div>
 
+      <ContextHelp title="Inscripción" :steps="[
+        'Elegí inscripción individual o familiar. Completá los datos del titular y, si corresponde, los integrantes del grupo.',
+        'Usá Atrás para revisar los pasos anteriores. Comprobá cédulas y datos de contacto en el resumen antes de enviar.',
+        'Enviar presenta una solicitud para revisión del club; no confirma automáticamente el alta ni la habilitación.',
+        'Si aparece un error, revisá los campos indicados antes de volver a enviar.'
+      ]" />
       <!-- Barra de progreso simple -->
       <div class="w-full bg-white/10 rounded-full h-1.5 mb-8">
         <div class="bg-orange-500 h-1.5 rounded-full transition-all duration-300" :style="{ width: `${(step / totalSteps) * 100}%` }"></div>
@@ -122,7 +128,7 @@
 
         <!-- Lista de Familiares -->
         <div v-for="(fam, index) in familiares" :key="index" class="bg-white/5 border border-white/10 p-4 rounded-xl relative">
-          <button @click="removeFamiliar(index)" class="absolute top-2 right-2 text-white/50 hover:text-red-400 p-1">
+          <button aria-label="Quitar familiar" title="Quitar este integrante de la solicitud" @click="removeFamiliar(index)" class="absolute top-2 right-2 text-white/50 hover:text-red-400 p-1">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
           </button>
           
@@ -227,6 +233,7 @@
 </template>
 
 <script setup>
+import ContextHelp from "./ContextHelp.vue";
 import { ref, reactive, computed } from 'vue'
 import { publicApi } from '../api/axios'
 

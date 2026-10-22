@@ -1,5 +1,5 @@
 {% extends "admin/base.html" %}
-{% load i18n static %}
+{% load i18n static ayuda %}
 
 {% block title %}{{ title }} | Amandayé Ipeguá Admin{% endblock %}
 
@@ -118,4 +118,14 @@
         {% csrf_token %}
         <button type="submit">{% translate 'Log out' %}</button>
     </form>
+{% endblock %}
+
+{% block messages %}
+{{ block.super }}
+{% ayuda_contextual %}
+{% endblock %}
+{% block extrahead %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'ayuda/ayuda.css' %}">
+<script src="{% static 'ayuda/ayuda.js' %}" defer></script>
 {% endblock %}

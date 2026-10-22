@@ -39,6 +39,11 @@
       <!-- Main Content -->
       <main class="flex-grow flex flex-col items-center justify-center px-4 py-8 text-center">
         
+        <ContextHelp v-if="!showForm" title="Bienvenido al club" :steps="[
+          'Hacete socio hoy abre la solicitud de inscripción; el club la revisará antes de aprobarla.',
+          'Condiciones del río muestra observaciones meteorológicas y pronóstico, con sus fuentes y fechas.',
+          'Acceder es el ingreso del personal autorizado a la administración del club.'
+        ]" />
         <transition name="fade" mode="out-in">
           <!-- Hero View -->
           <div v-if="!showForm" class="max-w-4xl space-y-8" key="hero">
@@ -86,7 +91,7 @@
         <transition name="fade">
           <div v-if="showMap" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" @click.self="showMap = false">
             <div class="relative w-full max-w-4xl bg-white rounded-2xl overflow-hidden shadow-2xl animate-scale-in">
-              <button @click="showMap = false" class="absolute top-4 right-4 z-10 p-2 bg-white/90 rounded-full hover:bg-white text-gray-800 shadow-md transition-all hover:scale-110">
+              <button aria-label="Cerrar mapa" title="Cerrar el mapa y volver a la página" @click="showMap = false" class="absolute top-4 right-4 z-10 p-2 bg-white/90 rounded-full hover:bg-white text-gray-800 shadow-md transition-all hover:scale-110">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
               <div class="aspect-video w-full">
@@ -134,6 +139,7 @@
 </template>
 
 <script setup>
+import ContextHelp from "./components/ContextHelp.vue";
 import { ref } from 'vue'
 import RegistrationForm from './components/RegistrationForm.vue'
 
