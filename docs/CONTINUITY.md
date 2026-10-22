@@ -7,6 +7,15 @@ Este registro conserva decisiones y próximos pasos entre sesiones. Comprobar si
 verificarse de nuevo cuando sean relevantes. Mantenerlo breve y sin datos personales,
 secretos, volcados de conversaciones ni logs completos.
 
+## Cierre de sesión — 2026-10-22
+
+- El logout administrativo vuelve a la portada Vue: `http://localhost:5173/`
+  en desarrollo y `/` en producción. Destino configurable con `FRONTEND_HOME_URL`.
+  Antes, `/` en el puerto 8000 devolvía al login del backend.
+- Tres pruebas satisfactorias: destino de desarrollo, raíz pública de producción,
+  eliminación de sesión y conservación de la exigencia POST/CSRF.
+- Cambio de configuración sin migraciones; guía de uso actualizada.
+
 ## Ayuda contextual — 2026-10-21
 
 - Ayuda desplegable integrada en las pantallas Django y guías específicas para

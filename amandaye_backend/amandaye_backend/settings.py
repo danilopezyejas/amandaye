@@ -110,7 +110,10 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
 CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 if PRODUCTION and any(not origin.startswith("https://") for origin in CORS_ALLOWED_ORIGINS + CSRF_TRUSTED_ORIGINS):
     raise ImproperlyConfigured("Production origins must use HTTPS.")
-LOGOUT_REDIRECT_URL = "/"
+# Development exposes Vue on a separate port; production shares the public origin.
+LOGOUT_REDIRECT_URL = os.environ.get(
+    "FRONTEND_HOME_URL", "http://localhost:5173/" if ENVIRONMENT == "development" else "/"
+)
 LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/admin/"
 CLUB_NAME = os.environ.get("CLUB_NAME", "Club Amandayé Ipeguá")

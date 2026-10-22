@@ -29,6 +29,13 @@ entrar por **Acceder** y luego **Abrir Gestión diaria**. El panel muestra:
 - cargos vencidos;
 - habilitaciones que requieren revisión.
 
+### Cerrar sesión
+
+**Cerrar sesión** termina la sesión administrativa y vuelve a la portada pública.
+En desarrollo vuelve a `http://localhost:5173/`, incluso al entrar al administrador
+por el puerto 8000. En producción vuelve a `/` del mismo dominio.
+`FRONTEND_HOME_URL` permite configurar otro destino desde el entorno del backend.
+
 ## Ayuda dentro de la aplicación
 
 Cada pantalla del administrador muestra **Ayuda: nombre de la sección** antes del
